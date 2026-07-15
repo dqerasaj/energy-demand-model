@@ -1,0 +1,16 @@
+# Licensed / private data - must never be committed to the public repo
+input_data/
+
+# Local Streamlit secrets (real secrets live in Streamlit Cloud's Secrets settings)
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store

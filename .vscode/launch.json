@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug LDV Forecast Model.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/ldv_forecast_model.py",
+            "args": ["input_data/globaldata_ldv_sales.csv"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+    ]
+}
