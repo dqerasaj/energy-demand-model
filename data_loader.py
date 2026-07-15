@@ -17,7 +17,7 @@ import streamlit as st
 LOCAL_CSV_PATH = Path(__file__).parent / "input_data" / "globaldata_ldv_sales.csv"
 CACHED_CSV_PATH = Path(tempfile.gettempdir()) / "energy-demand-model-data" / "globaldata_ldv_sales.csv"
 
-DATA_REPO = "carbon-tracker-initiative/energy-demand-model-data"
+DATA_REPO = "dqerasaj/energy-demand-model-data"
 DATA_REPO_PATH = "globaldata_ldv_sales.csv"
 DATA_REPO_REF = "main"
 

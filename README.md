@@ -25,20 +25,18 @@ The input CSV is GlobalData-licensed data and must **not** be committed to
 this (public) repo - it lives in a separate private repo instead, and the
 running app downloads it at startup via a scoped GitHub token.
 
-1. Create a **private** GitHub repo, e.g. `carbon-tracker-initiative/energy-demand-model-data`,
-   and push `globaldata_ldv_sales.csv` to it (update the `DATA_REPO`/`DATA_REPO_PATH`
-   constants in `data_loader.py` if you use a different name/path).
-2. Generate a fine-grained GitHub Personal Access Token scoped read-only to
-   that one repo. Note its expiry - fine-grained tokens expire within a year
-   and the app will fail once it lapses until someone rotates it.
-3. Push this repo to GitHub. Double-check `git status` shows `input_data/`
-   and `.streamlit/secrets.toml` as ignored before pushing.
-4. On [share.streamlit.io](https://share.streamlit.io), create a new app
-   pointing at this repo, branch `main`, entry point `app.py`.
+1. Create a **private** GitHub repo (e.g.`{repo_owner}/energy-demand-model-data`) and push
+   `globaldata_ldv_sales.csv` to it.
+   (update the `DATA_REPO`/`DATA_REPO_PATH` constants in `data_loader.py` if you use a different name/path)
+2. Generate a fine-grained GitHub Personal Access Token scoped read-only to that one repo.
+   Note its expiry - the app will fail once it lapses until someone restarts it.
+3. Push this repo to GitHub. Double-check `git status` shows `input_data/` and
+   `.streamlit/secrets.toml` as ignored before pushing.
+4. On [share.streamlit.io](https://share.streamlit.io), create a new app pointing at this repo,
+   branch `main`, entry point `app.py`.
 5. In the app's Settings -> Secrets, paste in real values matching
    `.streamlit/secrets.toml.example`'s structure: `[auth]` username/password
-   (the shared login for the dashboard) and `[github] data_repo_pat` (the
-   token from step 2).
-6. Deploy, then verify on the live URL: the login gate blocks unauthenticated
-   access, the data downloads successfully from the private repo, and the
-   numbers match a local run.
+   (the chosen shared login for the dashboard) and `[github] data_repo_pat`
+   (the token from step 2).
+6. Deploy, then verify on the live URL: the login gate blocks unauthenticated access,
+   the data downloads successfully from the private repo, and the numbers match a local run.
