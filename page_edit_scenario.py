@@ -1,8 +1,9 @@
-"""What-if scenario sandbox: start from a built-in scenario, edit its
-anchor-year values, and see the resulting sales forecast recompute live.
-Edits are session-only unless explicitly saved - Save makes the edited
-values selectable as "Custom" on the main Dashboard page; Reset discards
-any saved Custom scenario and reverts the editable tables."""
+"""What-if scenario sandbox: edit Base/Faster/Slower's anchor-year values
+side by side and see the resulting sales forecasts recompute live. Nothing
+is saved unless you click Save, which replaces Base Case/Faster
+Transition/Slower Transition app-wide for the rest of the session (Main
+Dashboard and Scenario Comparison both pick it up). Reset reverts
+everything back to the scenario_config.py defaults."""
 
 import pandas as pd
 import plotly.express as px
@@ -10,8 +11,10 @@ import streamlit as st
 
 from dashboard_helpers import (
     ANCHOR_YEARS,
+    REGION_ORDER,
     SCENARIOS,
     build_editable_tech_tables,
+    combo_series_data,
     compute_filtered_view,
     render_filters,
     render_region_powertrain_section,
@@ -20,118 +23,141 @@ from dashboard_helpers import (
 from ldv_forecast_model import ForecastResults, run_model
 from model_cache import get_forecast_results
 
-CUSTOM_SCENARIO_NAME = "Custom"
 TECHS = ["PHEV", "BEV", "Total LDVs"]
 
 
-def _tables_to_scenario_dicts(edited_tables: dict[str, pd.DataFrame]) -> tuple[dict, dict]:
-    """Split the edited 3-table dict back into the two scenario-dict shapes
-    run_model expects, converting bare percentages back to fractions."""
-    region_powertrain: dict = {}
-    region_only: dict = {}
+def _tables_to_scenario_dicts(
+    edited_tables: dict[str, dict[str, pd.DataFrame]]
+) -> tuple[dict, dict]:
+    """Split the edited {tech: {scenario: DataFrame}} dict back into the two
+    scenario-dict shapes run_model expects, converting bare percentages back
+    to fractions."""
+    region_powertrain: dict = {s: {} for s in SCENARIOS}
+    region_only: dict = {s: {} for s in SCENARIOS}
     for powertrain in ["PHEV", "BEV"]:
-        for _, row in edited_tables[powertrain].iterrows():
-            region_powertrain[(row["Region"], powertrain)] = {
-                y: row[str(y)] / 100 for y in ANCHOR_YEARS
-            }
-    for _, row in edited_tables["Total LDVs"].iterrows():
-        region_only[row["Region"]] = {y: row[str(y)] / 100 for y in ANCHOR_YEARS}
-    return {CUSTOM_SCENARIO_NAME: region_powertrain}, {CUSTOM_SCENARIO_NAME: region_only}
+        for scenario in SCENARIOS:
+            for _, row in edited_tables[powertrain][scenario].iterrows():
+                region_powertrain[scenario][(row["Region"], powertrain)] = {
+                    y: row[str(y)] / 100 for y in ANCHOR_YEARS
+                }
+    for scenario in SCENARIOS:
+        for _, row in edited_tables["Total LDVs"][scenario].iterrows():
+            region_only[scenario][row["Region"]] = {y: row[str(y)] / 100 for y in ANCHOR_YEARS}
+    return region_powertrain, region_only
 
 
-def _changed_configs(
-    starting_tables: dict[str, pd.DataFrame], edited_tables: dict[str, pd.DataFrame]
-) -> list[tuple[str, str]]:
-    """(region, tech) pairs where any year value differs between the
-    starting and edited tables. Both are already rounded to 1dp, so this is
-    an exact comparison, not float-fuzzy."""
+def _changed_scenarios(
+    pristine_tables: dict[str, dict[str, pd.DataFrame]],
+    edited_tables: dict[str, dict[str, pd.DataFrame]],
+) -> dict[tuple[str, str], list[str]]:
+    """{(region, tech): [scenario, ...]} for every region+tech with at least
+    one edited scenario - the list names exactly which scenario(s) changed,
+    so the chart can decide between an Original-vs-Edited diff (1 scenario
+    changed) or a scenario comparison (more than 1). Both tables are already
+    rounded to 1dp, so this is an exact comparison, not float-fuzzy."""
     year_cols = [str(y) for y in ANCHOR_YEARS]
-    changed = []
+    changed: dict[tuple[str, str], list[str]] = {}
     for tech in TECHS:
-        starting = starting_tables[tech].set_index("Region")
-        edited = edited_tables[tech].set_index("Region")
-        for region in starting.index:
-            if not starting.loc[region, year_cols].equals(edited.loc[region, year_cols]):
-                changed.append((region, tech))
+        pristine_by_scenario = {s: pristine_tables[tech][s].set_index("Region") for s in SCENARIOS}
+        edited_by_scenario = {s: edited_tables[tech][s].set_index("Region") for s in SCENARIOS}
+        for region in REGION_ORDER:
+            changed_here = [
+                s
+                for s in SCENARIOS
+                if not pristine_by_scenario[s].loc[region, year_cols].equals(
+                    edited_by_scenario[s].loc[region, year_cols]
+                )
+            ]
+            if changed_here:
+                changed[(region, tech)] = changed_here
     return changed
 
 
 def render_change_charts(
-    starting_point: str,
     original_results: ForecastResults,
     custom_results: ForecastResults,
-    changed_configs: list[tuple[str, str]],
+    changed: dict[tuple[str, str], list[str]],
+    selected_scenarios: list[str],
 ) -> None:
-    if not changed_configs:
+    """One chart per changed (region, tech): Original (dashed) vs Edited
+    (solid) lines, colored by scenario - but only for the scenario(s) that
+    were both actually edited and currently selected in the scenario filter.
+    Unchanged scenarios aren't shown, since their Original and Edited lines
+    would be identical anyway."""
+    if not changed:
         st.caption("No changes yet - edit a value above to see it here.")
         return
 
-    for region, tech in changed_configs:
-        if tech == "Total LDVs":
-            original = original_results.region_sales.loc[
-                original_results.region_sales["scenario"].eq(starting_point)
-                & original_results.region_sales["region"].eq(region)
-            ].assign(series="Original")
-            edited = custom_results.region_sales.loc[
-                custom_results.region_sales["region"].eq(region)
-            ].assign(series="Edited")
-        else:
-            original = original_results.region_and_powertrain_sales.loc[
-                original_results.region_and_powertrain_sales["scenario"].eq(starting_point)
-                & original_results.region_and_powertrain_sales["region"].eq(region)
-                & original_results.region_and_powertrain_sales["powertrain"].eq(tech)
-            ].assign(series="Original")
-            edited = custom_results.region_and_powertrain_sales.loc[
-                custom_results.region_and_powertrain_sales["region"].eq(region)
-                & custom_results.region_and_powertrain_sales["powertrain"].eq(tech)
-            ].assign(series="Edited")
+    any_shown = False
+    for (region, tech), changed_scenarios in changed.items():
+        scenarios_to_show = [s for s in changed_scenarios if s in selected_scenarios]
+        if not scenarios_to_show:
+            continue
+        any_shown = True
 
-        combined = pd.concat([original, edited], ignore_index=True)
+        series_type = "Total" if tech == "Total LDVs" else tech
+
+        original = combo_series_data(original_results, region, series_type)
+        original = original.loc[original["scenario"].isin(scenarios_to_show)].assign(series="Original")
+        edited = combo_series_data(custom_results, region, series_type)
+        edited = edited.loc[edited["scenario"].isin(scenarios_to_show)].assign(series="Edited")
+        data = pd.concat([original, edited], ignore_index=True)
+
         fig = px.line(
-            combined,
+            data,
             x="year",
             y="sales",
-            color="series",
+            color="scenario",
+            line_dash="series",
+            line_dash_map={"Original": "dash", "Edited": "solid"},
+            category_orders={"scenario": SCENARIOS},
             title=f"{region} - {tech}",
             labels={"sales": "Sales (million vehicles)", "year": "Year"},
         )
         st.plotly_chart(fig, use_container_width=True)
 
+    if not any_shown:
+        st.caption("No changes for the selected scenario(s).")
+
 
 def render(csv_path: str) -> None:
-    st.title("Edit Scenario")
+    st.title("Edit Scenario Configs")
     st.write(
-        "Start from one of the built-in scenarios, tweak the anchor-year "
-        "values below, and see the resulting sales forecast update live. "
-        "Nothing here is saved unless you click Save."
+        "Tweak the anchor-year values for Base Case, Faster Transition and "
+        "Slower Transition below, and see the resulting sales forecasts "
+        "update live. Nothing here is saved unless you click Save."
     )
 
-    starting_point = st.selectbox("Start from", SCENARIOS, key="edit_starting_point")
-    starting_tables = build_editable_tech_tables(starting_point)
+    pristine_tables = build_editable_tech_tables()
 
-    edited_tables = {}
+    edited_tables: dict[str, dict[str, pd.DataFrame]] = {}
     for tech in TECHS:
-        st.caption(tech)
-        edited_tables[tech] = st.data_editor(
-            starting_tables[tech],
-            hide_index=True,
-            disabled=["Region"],
-            num_rows="fixed",
-            key=f"edit_{tech}_table",
-        )
+        st.subheader(tech)
+        edited_tables[tech] = {}
+        for scenario, col in zip(SCENARIOS, st.columns(3)):
+            with col:
+                st.caption(scenario)
+                edited_tables[tech][scenario] = st.data_editor(
+                    pristine_tables[tech][scenario],
+                    hide_index=True,
+                    disabled=["Region"],
+                    num_rows="fixed",
+                    key=f"edit_{tech}_{scenario}_table",
+                )
 
     region_powertrain_scenarios, region_scenarios = _tables_to_scenario_dicts(edited_tables)
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Save as Custom scenario"):
-            st.session_state["custom_scenario_config"] = (region_powertrain_scenarios, region_scenarios)
-            st.success("Saved - select 'Custom' on the Dashboard page to view it there.")
+        if st.button("Save (replaces Base/Faster/Slower app-wide)"):
+            st.session_state["scenario_override"] = (region_powertrain_scenarios, region_scenarios)
+            st.success("Saved - Main Dashboard and Scenario Comparison now reflect these edits.")
     with col2:
         if st.button("Reset to defaults"):
-            st.session_state.pop("custom_scenario_config", None)
+            st.session_state.pop("scenario_override", None)
             for tech in TECHS:
-                st.session_state.pop(f"edit_{tech}_table", None)
+                for scenario in SCENARIOS:
+                    st.session_state.pop(f"edit_{tech}_{scenario}_table", None)
             st.rerun()
 
     custom_results = run_model(
@@ -141,17 +167,21 @@ def render(csv_path: str) -> None:
     )
 
     st.divider()
-    with st.expander("See changes as charts"):
-        changed = _changed_configs(starting_tables, edited_tables)
-        render_change_charts(
-            starting_point, get_forecast_results(csv_path), custom_results, changed
+    with st.expander("See changes as charts", expanded=True):
+        changed = _changed_scenarios(pristine_tables, edited_tables)
+        selected_scenarios = (
+            st.multiselect(
+                "Show scenario(s)", SCENARIOS, default=SCENARIOS, key="change_chart_scenario_filter"
+            )
+            or SCENARIOS
         )
-
-    regions, powertrains = render_filters()
-    view = compute_filtered_view(custom_results, CUSTOM_SCENARIO_NAME, regions, powertrains)
+        render_change_charts(get_forecast_results(csv_path), custom_results, changed, selected_scenarios)
 
     st.divider()
     st.subheader("Sales by region & powertrain")
+    scenario_to_view = st.selectbox("Scenario", SCENARIOS, key="edit_page_scenario_view")
+    regions, powertrains = render_filters()
+    view = compute_filtered_view(custom_results, scenario_to_view, regions, powertrains)
     render_region_powertrain_section(view)
 
     st.divider()

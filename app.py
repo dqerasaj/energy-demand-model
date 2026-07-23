@@ -20,10 +20,10 @@ if __name__ == "__main__":
 
     pg = st.navigation(
         [
-            st.Page(page_dashboard.render, title="Dashboard", url_path="dashboard", default=True),
+            st.Page(page_dashboard.render, title="Main Dashboard", url_path="dashboard", default=True),
             st.Page(
                 lambda: page_edit_scenario.render(get_csv_path()),
-                title="Edit Scenario",
+                title="Edit Scenario Configs",
                 url_path="edit-scenario",
             ),
             st.Page(

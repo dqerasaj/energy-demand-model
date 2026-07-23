@@ -21,56 +21,100 @@ ANCHOR_YEARS = [2025, 2030, 2035, 2040, 2050]
 SCENARIOS = ["Base Case", "Faster Transition", "Slower Transition"]
 
 
-def build_editable_tech_tables(scenario: str) -> dict[str, pd.DataFrame]:
-    """Pure anchor-year values straight from scenario_config.py, split into 3
-    separate tables (PHEV, BEV, Total LDVs) - matches build_tech_tables'
-    grouping, but no computed Global row here (unlike build_tech_tables) -
-    these are purely the editable starting values for the Edit Scenario page,
-    and editing a computed rollup wouldn't make sense."""
-    tables = {}
+def build_editable_tech_tables() -> dict[str, dict[str, pd.DataFrame]]:
+    """Pure anchor-year values straight from scenario_config.py. Nested:
+    {tech: {scenario: DataFrame}} - one simple Region x Year table per
+    (tech, scenario) combination, meant to be shown 3-at-a-time (one per
+    scenario) side by side under each tech's heading. No computed Global row
+    here (unlike build_tech_tables) - these are purely the editable starting
+    values for the Edit Scenario Configs page, and editing a computed rollup
+    wouldn't make sense. Always built straight from the scenario_config.py
+    constants (never from a saved override), since this is also the
+    pristine reference Reset needs to revert back to."""
+    tables: dict[str, dict[str, pd.DataFrame]] = {}
     for powertrain in ["PHEV", "BEV"]:
-        tables[powertrain] = pd.DataFrame(
+        tables[powertrain] = {
+            scenario: pd.DataFrame(
+                [
+                    {
+                        "Region": region,
+                        **{
+                            str(y): round(
+                                BASE_POWERTRAIN_AND_REGION_SCENARIOS[scenario][(region, powertrain)][y] * 100, 1
+                            )
+                            for y in ANCHOR_YEARS
+                        },
+                    }
+                    for region in REGION_ORDER
+                ]
+            )
+            for scenario in SCENARIOS
+        }
+    tables["Total LDVs"] = {
+        scenario: pd.DataFrame(
             [
                 {
                     "Region": region,
-                    **{
-                        str(y): round(BASE_POWERTRAIN_AND_REGION_SCENARIOS[scenario][(region, powertrain)][y] * 100, 1)
-                        for y in ANCHOR_YEARS
-                    },
+                    **{str(y): round(BASE_REGION_SCENARIOS[scenario][region][y] * 100, 1) for y in ANCHOR_YEARS},
                 }
                 for region in REGION_ORDER
             ]
         )
-    tables["Total LDVs"] = pd.DataFrame(
-        [
-            {
-                "Region": region,
-                **{str(y): round(BASE_REGION_SCENARIOS[scenario][region][y] * 100, 1) for y in ANCHOR_YEARS},
-            }
-            for region in REGION_ORDER
-        ]
-    )
+        for scenario in SCENARIOS
+    }
     return tables
 
 
+def combo_series_data(results: ForecastResults, region: str, series_type: str) -> pd.DataFrame:
+    """All 3 scenarios' full actual+forecast series for one combination.
+    region="Global" = summed across regions; series_type="Total" = summed
+    across powertrains (all-LDV)."""
+    if series_type == "Total":
+        df = (
+            results.total_sales
+            if region == "Global"
+            else results.region_sales.loc[results.region_sales["region"].eq(region)]
+        )
+    else:
+        df = (
+            results.powertrain_sales.loc[results.powertrain_sales["powertrain"].eq(series_type)]
+            if region == "Global"
+            else results.region_and_powertrain_sales.loc[
+                results.region_and_powertrain_sales["region"].eq(region)
+                & results.region_and_powertrain_sales["powertrain"].eq(series_type)
+            ]
+        )
+    return df.drop(columns=[c for c in ("region", "powertrain") if c in df.columns])
+
+
+def render_region_filter() -> list[str]:
+    """Region multiselect, shared widget key so the selection persists
+    across pages. An empty selection falls back to "all"."""
+    return (
+        st.multiselect("Region", REGION_ORDER, default=REGION_ORDER, key="region_filter")
+        or REGION_ORDER
+    )
+
+
+def render_powertrain_filter() -> list[str]:
+    """Powertrain multiselect, shared widget key so the selection persists
+    across pages. An empty selection falls back to "all"."""
+    return (
+        st.multiselect(
+            "Powertrain", ["PHEV", "BEV", "IC Only"],
+            default=["PHEV", "BEV", "IC Only"], key="powertrain_filter",
+        )
+        or ["PHEV", "BEV", "IC Only"]
+    )
+
+
 def render_filters() -> tuple[list[str], list[str]]:
-    """Region + Powertrain multiselects, shared widget keys so the selection
-    persists across pages. An empty selection falls back to "all" rather
-    than rendering an empty/broken table."""
+    """Region + Powertrain multiselects side by side."""
     col1, col2 = st.columns(2)
     with col1:
-        regions = (
-            st.multiselect("Region", REGION_ORDER, default=REGION_ORDER, key="region_filter")
-            or REGION_ORDER
-        )
+        regions = render_region_filter()
     with col2:
-        powertrains = (
-            st.multiselect(
-                "Powertrain", ["PHEV", "BEV", "IC Only"],
-                default=["PHEV", "BEV", "IC Only"], key="powertrain_filter",
-            )
-            or ["PHEV", "BEV", "IC Only"]
-        )
+        powertrains = render_powertrain_filter()
     return regions, powertrains
 
 
