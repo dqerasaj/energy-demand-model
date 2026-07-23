@@ -38,10 +38,14 @@ def render() -> None:
     view = compute_filtered_view(results, scenario, regions, powertrains)
 
     with st.expander("Scenario configuration"):
-        st.caption("Sales Growth (%)")
+        table_captions = {
+            "PHEV": "PHEV - penetration share of all-LDV sales (%)",
+            "BEV": "BEV - penetration share of all-LDV sales (%)",
+            "Total LDVs": "Total LDVs - YoY sales growth (%)",
+        }
         tables = build_tech_tables(scenario, view, rp_scenarios, r_scenarios, regions)
         for name, df in tables.items():
-            st.caption(name)
+            st.caption(table_captions[name])
             st.dataframe(df, hide_index=True)
 
     st.divider()

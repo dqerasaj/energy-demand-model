@@ -116,9 +116,20 @@ def build_tech_tables(
 ) -> dict[str, pd.DataFrame]:
     """3 tables matching the Excel scenario-config layout: PHEV, BEV, Total
     LDVs. Each has one row per region (raw anchor-year config values, as
-    bare percentages) plus a "Total" row pulled from the model's actual
-    results (sales-weighted, scoped to whatever `view` was filtered to) -
-    NOT a naive average of the region rows.
+    bare percentages) plus one or two rows pulled from the model's actual
+    results (scoped to whatever `view` was filtered to), NOT a naive
+    average/sum of the region rows above them:
+
+    - PHEV/BEV tables: region rows are penetration share (% of that
+      region's all-LDV sales). "Global Penetration" is the true global
+      ratio (global powertrain sales / global all-LDV sales) - it does NOT
+      equal any average of the region rows, since penetration is a ratio of
+      sums, not a sum of ratios.
+    - Total LDVs table: region rows are YoY sales growth %. "Global Growth"
+      is the sales-share-weighted average of the region growth rates (this
+      one IS a weighted average, unlike penetration above). "Global Sales
+      (m)" is the actual global sales volume that year, in millions of
+      vehicles - a different unit entirely (absolute, not a rate).
 
     `region_powertrain_scenarios`/`region_scenarios` default to the
     scenario_config.py constants, but can be a custom scenario dict of the
@@ -153,7 +164,7 @@ def build_tech_tables(
         ]
         rows.append(
             {
-                "Region": "Global",
+                "Region": "Global Penetration",
                 **{
                     str(y): round(global_pen.loc[global_pen["year"].eq(y), "penetration"].iloc[0] * 100, 1)
                     for y in ANCHOR_YEARS
@@ -172,7 +183,7 @@ def build_tech_tables(
     global_total = view.rollup_total.loc[view.rollup_total["year"].isin(ANCHOR_YEARS)]
     total_rows.append(
         {
-            "Region": "Global",
+            "Region": "Global Growth",
             **{
                 str(y): round(global_total.loc[global_total["year"].eq(y), "yoy_pct"].iloc[0] * 100, 1)
                 for y in ANCHOR_YEARS
@@ -181,7 +192,7 @@ def build_tech_tables(
     )
     total_rows.append(
         {
-            "Region": "Global Units (m)",
+            "Region": "Global Sales (m)",
             **{
                 str(y): round(global_total.loc[global_total["year"].eq(y), "sales"].iloc[0], 1)
                 for y in ANCHOR_YEARS
