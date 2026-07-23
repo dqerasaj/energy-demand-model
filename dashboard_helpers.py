@@ -134,7 +134,13 @@ def compute_filtered_view(
     always means "sum of what's currently shown", not the true unfiltered
     worldwide figure. The powertrain filter only applies to the region+
     powertrain data; region_sales/total_sales are inherently powertrain-
-    agnostic, so only the region filter applies to them."""
+    agnostic, so only the region filter applies to them.
+
+    The rollups need "scenario" present to group by (aggregate_powertrain_sales/
+    aggregate_total_sales both group on it), so it's dropped only afterward,
+    from all 4 stored frames - once filtered to a single scenario, keeping
+    that column around would just be a redundant constant value in every
+    downstream table."""
     detail_rp = results.region_and_powertrain_sales.loc[
         results.region_and_powertrain_sales["scenario"].eq(scenario)
         & results.region_and_powertrain_sales["region"].isin(regions)
@@ -143,11 +149,13 @@ def compute_filtered_view(
     detail_region = results.region_sales.loc[
         results.region_sales["scenario"].eq(scenario) & results.region_sales["region"].isin(regions)
     ]
+    rollup_pt = aggregate_powertrain_sales(detail_rp)
+    rollup_total = aggregate_total_sales(detail_region)
     return FilteredView(
-        detail_rp=detail_rp,
-        rollup_pt=aggregate_powertrain_sales(detail_rp),
-        detail_region=detail_region,
-        rollup_total=aggregate_total_sales(detail_region),
+        detail_rp=detail_rp.drop(columns="scenario"),
+        rollup_pt=rollup_pt.drop(columns="scenario"),
+        detail_region=detail_region.drop(columns="scenario"),
+        rollup_total=rollup_total.drop(columns="scenario"),
     )
 
 
@@ -248,7 +256,7 @@ def build_tech_tables(
     return tables
 
 
-def _append_global_rollup(detail: pd.DataFrame, rollup: pd.DataFrame) -> pd.DataFrame:
+def append_global_rollup(detail: pd.DataFrame, rollup: pd.DataFrame) -> pd.DataFrame:
     """Stack the region-less rollup rows under a synthetic region="Global"
     so both frames share the same columns for to_wide(). `detail`/`rollup`
     are expected to already be filtered to one scenario."""
@@ -257,13 +265,107 @@ def _append_global_rollup(detail: pd.DataFrame, rollup: pd.DataFrame) -> pd.Data
     return pd.concat([detail, rollup], ignore_index=True)
 
 
+def order_sales_table(wide: pd.DataFrame) -> pd.DataFrame:
+    """Row/column order for the wide sales tables: Powertrain first (if
+    present), then Region, then Scenario (if present) - all using the app's
+    canonical ordering, with "Global" always sorted last within its group
+    rather than wherever it'd otherwise fall."""
+    wide = wide.copy()
+    region_order = [*REGION_ORDER, "Global"]
+    wide["region"] = pd.Categorical(wide["region"], categories=region_order, ordered=True)
+
+    sort_cols: list[str] = []
+    lead_cols: list[str] = []
+    if "powertrain" in wide.columns:
+        wide["powertrain"] = pd.Categorical(wide["powertrain"], categories=POWERTRAIN_ORDER, ordered=True)
+        sort_cols.append("powertrain")
+        lead_cols.append("powertrain")
+    sort_cols.append("region")
+    lead_cols.append("region")
+    if "scenario" in wide.columns:
+        wide["scenario"] = pd.Categorical(wide["scenario"], categories=SCENARIOS, ordered=True)
+        sort_cols.append("scenario")
+        lead_cols.append("scenario")
+
+    wide = wide.sort_values(sort_cols)
+    remaining = [c for c in wide.columns if c not in lead_cols]
+    return wide[[*lead_cols, *remaining]].reset_index(drop=True)
+
+
+def by_region_chart(detail_rp: pd.DataFrame, dash_col: str | None = None):
+    """Facet-by-region, color-by-powertrain line chart. `dash_col` (e.g.
+    "scenario") adds a 3rd dimension via line dash pattern - used only by
+    the Main Dashboard's all-scenarios "By region" view."""
+    category_orders = {"region": REGION_ORDER, "powertrain": POWERTRAIN_ORDER}
+    if dash_col:
+        category_orders[dash_col] = SCENARIOS
+    fig = px.line(
+        detail_rp,
+        x="year",
+        y="sales",
+        color="powertrain",
+        line_dash=dash_col,
+        facet_col="region",
+        facet_col_wrap=2,
+        category_orders=category_orders,
+        labels={"sales": "Sales (million vehicles)", "year": "Year"},
+    )
+    fig.update_yaxes(matches=None, showticklabels=True)
+    fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+    return fig
+
+
+def global_powertrain_chart(rollup_pt: pd.DataFrame, chart_type: str):
+    """"Global trend"/"Global split" chart for one scenario's powertrain rollup."""
+    plot_fn = px.line if chart_type == "Global trend" else px.bar
+    fig = plot_fn(
+        rollup_pt,
+        x="year",
+        y="sales",
+        color="powertrain",
+        category_orders={"powertrain": POWERTRAIN_ORDER},
+        labels={"sales": "Sales (million vehicles)", "year": "Year"},
+    )
+    if chart_type == "Global split":
+        fig.update_layout(barmode="stack")
+    return fig
+
+
+def region_trend_chart(combined: pd.DataFrame):
+    """Region totals "Trend" chart (region + Global rollup), for one scenario."""
+    fig = px.line(
+        combined,
+        x="year",
+        y="sales",
+        color="region",
+        category_orders={"region": [*REGION_ORDER, "Global"]},
+        labels={"sales": "Sales (million vehicles)", "year": "Year"},
+    )
+    fig.update_traces(selector={"name": "Global"}, line=dict(dash="dash", width=4))
+    return fig
+
+
+def region_split_chart(detail_region: pd.DataFrame):
+    """Region totals "Split by region" stacked bar chart, for one scenario."""
+    fig = px.bar(
+        detail_region,
+        x="year",
+        y="sales",
+        color="region",
+        category_orders={"region": REGION_ORDER},
+        labels={"sales": "Sales (million vehicles)", "year": "Year"},
+    )
+    fig.update_layout(barmode="stack")
+    return fig
+
+
 def render_region_powertrain_section(view: FilteredView) -> None:
-    combined = _append_global_rollup(view.detail_rp, view.rollup_pt)
+    combined = append_global_rollup(view.detail_rp, view.rollup_pt)
     view_mode = st.segmented_control(
         "View", ["Table", "Chart"], default="Table", key="s1_view"
     )
     if view_mode != "Chart":
-        st.dataframe(to_wide(combined), hide_index=True)
+        st.dataframe(order_sales_table(to_wide(combined)), hide_index=True)
         return
 
     chart_type = st.segmented_control(
@@ -274,42 +376,21 @@ def render_region_powertrain_section(view: FilteredView) -> None:
     )
 
     if chart_type == "By region":
-        fig = px.line(
-            view.detail_rp,
-            x="year",
-            y="sales",
-            color="powertrain",
-            facet_col="region",
-            facet_col_wrap=2,
-            category_orders={"region": REGION_ORDER, "powertrain": POWERTRAIN_ORDER},
-            labels={"sales": "Sales (million vehicles)", "year": "Year"},
-        )
-        fig.update_yaxes(matches=None, showticklabels=True)
-        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+        fig = by_region_chart(view.detail_rp)
     else:
-        plot_fn = px.line if chart_type == "Global trend" else px.bar
-        fig = plot_fn(
-            view.rollup_pt,
-            x="year",
-            y="sales",
-            color="powertrain",
-            category_orders={"powertrain": POWERTRAIN_ORDER},
-            labels={"sales": "Sales (million vehicles)", "year": "Year"},
-        )
-        if chart_type == "Global split":
-            fig.update_layout(barmode="stack")
+        fig = global_powertrain_chart(view.rollup_pt, chart_type)
         fig.update_layout(height=600)
 
     st.plotly_chart(fig, use_container_width=True)
 
 
 def render_region_totals_section(view: FilteredView) -> None:
-    combined = _append_global_rollup(view.detail_region, view.rollup_total)
+    combined = append_global_rollup(view.detail_region, view.rollup_total)
     view_mode = st.segmented_control(
         "View", ["Table", "Chart"], default="Table", key="s2_view"
     )
     if view_mode != "Chart":
-        st.dataframe(to_wide(combined), hide_index=True)
+        st.dataframe(order_sales_table(to_wide(combined)), hide_index=True)
         return
 
     chart_type = st.segmented_control(
@@ -317,24 +398,9 @@ def render_region_totals_section(view: FilteredView) -> None:
     )
 
     if chart_type == "Trend":
-        fig = px.line(
-            combined,
-            x="year",
-            y="sales",
-            color="region",
-            category_orders={"region": [*REGION_ORDER, "Global"]},
-            labels={"sales": "Sales (million vehicles)", "year": "Year"},
-        )
-        fig.update_traces(selector={"name": "Global"}, line=dict(dash="dash", width=4))
+        fig = region_trend_chart(combined)
     else:
-        fig = px.bar(
-            view.detail_region,
-            x="year",
-            y="sales",
-            color="region",
-            category_orders={"region": REGION_ORDER},
-            labels={"sales": "Sales (million vehicles)", "year": "Year"},
-        )
-        fig.update_layout(barmode="stack", height=600)
+        fig = region_split_chart(view.detail_region)
+    fig.update_layout(height=600)
 
     st.plotly_chart(fig, use_container_width=True)
