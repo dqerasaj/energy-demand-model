@@ -368,12 +368,20 @@ def _residual_ic_only(
     return _add_yoy_pct(out, ["region", "powertrain"])
 
 
-def _aggregate_powertrain(region_and_powertrain_sales: pd.DataFrame) -> pd.DataFrame:
-    """Global sales per powertrain, summed across regions.
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def aggregate_powertrain_sales(region_and_powertrain_sales: pd.DataFrame) -> pd.DataFrame:
+    """Sales per powertrain, summed across whatever regions are present in
+    the input - pass the full region_and_powertrain_sales for the true global
+    figure, or a region/powertrain-filtered subset to get a rollup scoped to
+    just that subset (e.g. for a filtered dashboard view).
 
     Returns: powertrain | scenario | year | sales | data_type | penetration | yoy_pct
-    penetration = that powertrain's share of the global all-powertrain total for
-    the same scenario/year/data_type.
+    penetration = that powertrain's share of the summed total for the same
+    scenario/year/data_type (i.e. relative to whatever's in the input, not
+    necessarily the true global total).
     """
     out = (
         region_and_powertrain_sales
@@ -382,16 +390,18 @@ def _aggregate_powertrain(region_and_powertrain_sales: pd.DataFrame) -> pd.DataF
         .reset_index()
         .sort_values(["powertrain", "scenario", "year"], ignore_index=True)
     )
-    global_total = out.groupby(["scenario", "year", "data_type"])["sales"].transform("sum")
-    out["penetration"] = out["sales"] / global_total
+    total = out.groupby(["scenario", "year", "data_type"])["sales"].transform("sum")
+    out["penetration"] = out["sales"] / total
 
     return _add_yoy_pct(out, ["powertrain"])
 
 
-def _aggregate_total(region_sales: pd.DataFrame) -> pd.DataFrame:
-    """Global all-LDV sales, summed across regions - actual and forecast alike.
-    Actual-year sales are identical across scenarios (only forecast years diverge),
-    same as region_sales itself.
+def aggregate_total_sales(region_sales: pd.DataFrame) -> pd.DataFrame:
+    """All-LDV sales, summed across whatever regions are present in the
+    input - pass the full region_sales for the true global figure, or a
+    region-filtered subset to get a rollup scoped to just that subset.
+    Actual-year sales are identical across scenarios (only forecast years
+    diverge), same as region_sales itself.
 
     Returns: scenario | year | sales | data_type | yoy_pct
     """
@@ -405,11 +415,20 @@ def _aggregate_total(region_sales: pd.DataFrame) -> pd.DataFrame:
     return _add_yoy_pct(out, [])
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
+def run_model(
+    csv_path: str,
+    *,
+    region_scenarios: dict | None = None,
+    region_powertrain_scenarios: dict | None = None,
+) -> ForecastResults:
+    """`region_scenarios`/`region_powertrain_scenarios` default to the
+    scenario_config.py constants, but can be overridden with a custom
+    scenario dict of the same shape (e.g. for a what-if sandbox)."""
+    if region_scenarios is None:
+        region_scenarios = BASE_REGION_SCENARIOS
+    if region_powertrain_scenarios is None:
+        region_powertrain_scenarios = BASE_POWERTRAIN_AND_REGION_SCENARIOS
 
-def run_model(csv_path: str) -> ForecastResults:
     sales = load_actual_sales(csv_path)
 
     by_region_and_powertrain = (
@@ -418,16 +437,16 @@ def run_model(csv_path: str) -> ForecastResults:
     by_region = sales.groupby(["region", "year"])["sales"].sum().reset_index()
 
     region_sales = _project_yoy(
-        by_region, BASE_REGION_SCENARIOS,
+        by_region, region_scenarios,
         key_cols=["region"], how="stepped",
     )
-    total_sales = _aggregate_total(region_sales)
+    total_sales = aggregate_total_sales(region_sales)
 
     modeled_actuals = by_region_and_powertrain.loc[
         by_region_and_powertrain["powertrain"].isin(["BEV", "PHEV"])
     ]
     modeled_sales = _project_penetration(
-        modeled_actuals, region_sales, BASE_POWERTRAIN_AND_REGION_SCENARIOS,
+        modeled_actuals, region_sales, region_powertrain_scenarios,
         key_cols=["region", "powertrain"],
     )
 
@@ -435,14 +454,14 @@ def run_model(csv_path: str) -> ForecastResults:
         by_region_and_powertrain["powertrain"].eq("IC Only")
     ]
     ic_only_sales = _residual_ic_only(
-        ic_only_actuals, modeled_sales, region_sales, BASE_POWERTRAIN_AND_REGION_SCENARIOS,
+        ic_only_actuals, modeled_sales, region_sales, region_powertrain_scenarios,
     )
 
     region_and_powertrain_sales = pd.concat(
         [modeled_sales, ic_only_sales], ignore_index=True
     ).sort_values(["region", "powertrain", "scenario", "year"], ignore_index=True)
 
-    powertrain_sales = _aggregate_powertrain(region_and_powertrain_sales)
+    powertrain_sales = aggregate_powertrain_sales(region_and_powertrain_sales)
 
     return ForecastResults(
         region_and_powertrain_sales=region_and_powertrain_sales,
