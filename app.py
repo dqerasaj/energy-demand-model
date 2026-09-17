@@ -24,7 +24,6 @@ import page_dashboard
 import page_edit_scenario
 import page_main_dashboard
 import page_saved_scenario
-import page_scenario_comparison
 from scenario_store import list_scenarios
 from vehicle_models import VEHICLE_MODELS, VehicleModel
 
@@ -44,7 +43,7 @@ def _saved_scenario_pages(model: VehicleModel) -> list[st.Page]:
 
 
 def _model_section(model: VehicleModel) -> NavSection:
-    """One vehicle model's whole sidebar section: its three pages, plus a
+    """One vehicle model's whole sidebar section: its two pages, plus a
     nested Saved Scenarios subsection."""
     return NavSection(
         label=model.nav_label,
@@ -59,11 +58,6 @@ def _model_section(model: VehicleModel) -> NavSection:
                 lambda m=model: page_edit_scenario.render(m),
                 title="Edit Scenario Configs",
                 url_path=model.url("edit-scenarios"),
-            ),
-            st.Page(
-                lambda m=model: page_scenario_comparison.render(m),
-                title="Scenario Comparisons",
-                url_path=model.url("scenario-comparisons"),
             ),
         ],
         subsections=[

@@ -81,28 +81,6 @@ def build_editable_tech_tables(
     return tables
 
 
-def combo_series_data(results: ForecastResults, region: str, series_type: str) -> pd.DataFrame:
-    """All 3 scenarios' full actual+forecast series for one combination.
-    region="Global" = summed across regions; series_type="Total" = summed
-    across powertrains (all-vehicle)."""
-    if series_type == "Total":
-        df = (
-            results.total_sales
-            if region == GLOBAL_ROW
-            else results.region_sales.loc[results.region_sales["region"].eq(region)]
-        )
-    else:
-        df = (
-            results.powertrain_sales.loc[results.powertrain_sales["powertrain"].eq(series_type)]
-            if region == GLOBAL_ROW
-            else results.region_and_powertrain_sales.loc[
-                results.region_and_powertrain_sales["region"].eq(region)
-                & results.region_and_powertrain_sales["powertrain"].eq(series_type)
-            ]
-        )
-    return df.drop(columns=[c for c in ("region", "powertrain") if c in df.columns])
-
-
 def render_region_filter(model: VehicleModel, key_suffix: str = "") -> list[str]:
     """Region multiselect. `key_suffix` scopes it to one section, so each
     section of the Forecasts page filters independently. An empty selection
