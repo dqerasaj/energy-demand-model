@@ -6,6 +6,8 @@ regions, the powertrains, the table names and the widget-key prefix that keeps
 the LDV and HDV copies of a control apart.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 import pandas as pd
