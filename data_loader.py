@@ -69,8 +69,37 @@ def _download_from_private_repo(repo_path: str, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(".part")
     with requests.get(url, headers=headers, params={"ref": DATA_REPO_REF}, stream=True, timeout=60) as resp:
+        if not resp.ok:
+            _report_failure(repo_path, resp.status_code)
         resp.raise_for_status()
         with open(tmp, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1 << 20):
                 f.write(chunk)
     tmp.replace(dest)
+
+
+def _report_failure(repo_path: str, status: int) -> None:
+    """Say what actually went wrong, on the page.
+
+    Streamlit redacts exception messages in deployed apps, so a failed download
+    surfaces as a bare "requests.exceptions.HTTPError" with no status code and
+    no filename - which can't distinguish a lapsed token from a missing file.
+    This writes that detail out before the error propagates. The token itself
+    is never included.
+    """
+    hints = {
+        401: "the [github] data_repo_pat secret is missing, malformed or expired",
+        403: "the token can't access this repo, or its rate limit is exhausted",
+        404: (
+            f"{repo_path} isn't on branch {DATA_REPO_REF} of {DATA_REPO} - or "
+            "the token can't see that repo at all"
+        ),
+    }
+    hint = hints.get(status, "unexpected response from the GitHub API")
+    st.error(
+        f"Couldn't download **{repo_path}** from `{DATA_REPO}`.\n\n"
+        f"GitHub returned **{status}** - {hint}.\n\n"
+        "If the token has lapsed, generate a new fine-grained PAT with read "
+        "access to that repo and update this app's `[github] data_repo_pat` "
+        "secret in Streamlit Cloud."
+    )
