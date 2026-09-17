@@ -7,7 +7,7 @@ def check_password() -> bool:
     if st.session_state.get("authenticated", False):
         return True
 
-    st.title("LDV Sales Forecast - Sign in")
+    st.title("Energy Demand Model - Sign in")
     with st.form("login_form"):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")

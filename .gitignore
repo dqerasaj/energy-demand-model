@@ -14,3 +14,4 @@ env/
 
 # OS / editor
 .DS_Store
+saved_scenarios_*.json

@@ -5,26 +5,29 @@ Global across regions and Total across powertrains)."""
 import plotly.express as px
 import streamlit as st
 
-from dashboard_helpers import REGION_ORDER, SCENARIOS, combo_series_data, render_powertrain_filter
-from data_loader import get_csv_path
-from ldv_forecast_model import to_wide
+from dashboard_helpers import GLOBAL_ROW, SCENARIOS, combo_series_data, render_powertrain_filter
+from forecast_model import to_wide
 from model_cache import get_active_results
+from vehicle_models import VehicleModel
 
 
-def render() -> None:
+def render(model: VehicleModel) -> None:
     st.title("Scenario Comparison")
     st.write("Base Case vs Faster Transition vs Slower Transition, side by side.")
 
-    results = get_active_results(get_csv_path())
-    powertrains = render_powertrain_filter()
-    combo_regions = [*REGION_ORDER, "Global"]
+    results = get_active_results(model)
+    powertrains = render_powertrain_filter(model)
+    combo_regions = [*model.regions, GLOBAL_ROW]
     combo_series = [*powertrains, "Total"]
 
-    view = st.segmented_control("View", ["Chart", "Table"], default="Chart", key="comparison_view")
+    view = st.segmented_control(
+        "View", ["Chart", "Table"], default="Chart", key=model.wkey("comparison_view")
+    )
     chart_type = None
     if view == "Chart":
         chart_type = st.segmented_control(
-            "Chart type", ["Line", "Grouped Bar"], default="Line", key="comparison_chart_type"
+            "Chart type", ["Line", "Grouped Bar"], default="Line",
+            key=model.wkey("comparison_chart_type"),
         )
 
     for region, tab in zip(combo_regions, st.tabs(combo_regions)):
@@ -48,4 +51,7 @@ def render() -> None:
                 )
                 if chart_type == "Grouped Bar":
                     fig.update_layout(barmode="group")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(
+                    fig, use_container_width=True,
+                    key=model.wkey(f"comparison_{region}_{series_type}"),
+                )

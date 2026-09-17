@@ -1,5 +1,10 @@
-"""Shared constants and render helpers used by both the main dashboard page
-and the what-if scenario editor page."""
+"""Shared render helpers used by every model's dashboard and scenario editor
+pages.
+
+Everything here takes the VehicleModel it is rendering for: it supplies the
+regions, the powertrains, the table names and the widget-key prefix that keeps
+the LDV and HDV copies of a control apart.
+"""
 
 from dataclasses import dataclass
 
@@ -7,32 +12,41 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from ldv_forecast_model import (
+from forecast_model import (
+    ANCHOR_YEARS,
+    SCENARIOS,
     ForecastResults,
     aggregate_powertrain_sales,
     aggregate_total_sales,
     to_wide,
 )
-from scenario_config import BASE_POWERTRAIN_AND_REGION_SCENARIOS, BASE_REGION_SCENARIOS
+from vehicle_models import VehicleModel
 
-REGION_ORDER = ["North America", "Europe", "APAC", "RoW"]
-POWERTRAIN_ORDER = ["PHEV", "BEV", "IC Only"]
-ANCHOR_YEARS = [2025, 2030, 2035, 2040, 2050]
-SCENARIOS = ["Base Case", "Faster Transition", "Slower Transition"]
+# ANCHOR_YEARS and SCENARIOS are imported above purely so pages can keep
+# getting the scenario vocabulary from here rather than reaching into the
+# engine themselves.
+
+# The synthetic region the filtered rollups are stacked under - "sum of what's
+# currently shown", not necessarily the true worldwide figure.
+GLOBAL_ROW = "Global"
 
 
-def build_editable_tech_tables() -> dict[str, dict[str, pd.DataFrame]]:
-    """Pure anchor-year values straight from scenario_config.py. Nested:
-    {tech: {scenario: DataFrame}} - one simple Region x Year table per
-    (tech, scenario) combination, meant to be shown 3-at-a-time (one per
-    scenario) side by side under each tech's heading. No computed Global row
-    here (unlike build_tech_tables) - these are purely the editable starting
-    values for the Edit Scenario Configs page, and editing a computed rollup
-    wouldn't make sense. Always built straight from the scenario_config.py
-    constants (never from a saved override), since this is also the
-    pristine reference Reset needs to revert back to."""
+def build_editable_tech_tables(
+    model: VehicleModel,
+    region_powertrain_scenarios: dict,
+    region_scenarios: dict,
+) -> dict[str, dict[str, pd.DataFrame]]:
+    """Anchor-year values as bare percentages, nested {tech: {case: DataFrame}} -
+    one simple Region x Year table per (tech, scenario case), meant to be shown
+    3-at-a-time (one per case) side by side under each tech's heading. No
+    computed Global row here (unlike build_tech_tables) - these are the raw
+    values, editable on the Edit Scenario Configs page and read-only on a saved
+    scenario's page.
+
+    The values passed in are also the baseline the editor diffs against, so
+    they must be the stored values, never already-edited ones."""
     tables: dict[str, dict[str, pd.DataFrame]] = {}
-    for powertrain in ["PHEV", "BEV"]:
+    for powertrain in model.modelled_powertrains:
         tables[powertrain] = {
             scenario: pd.DataFrame(
                 [
@@ -40,24 +54,24 @@ def build_editable_tech_tables() -> dict[str, dict[str, pd.DataFrame]]:
                         "Region": region,
                         **{
                             str(y): round(
-                                BASE_POWERTRAIN_AND_REGION_SCENARIOS[scenario][(region, powertrain)][y] * 100, 1
+                                region_powertrain_scenarios[scenario][(region, powertrain)][y] * 100, 1
                             )
                             for y in ANCHOR_YEARS
                         },
                     }
-                    for region in REGION_ORDER
+                    for region in model.regions
                 ]
             )
             for scenario in SCENARIOS
         }
-    tables["Total LDVs"] = {
+    tables[model.total_label] = {
         scenario: pd.DataFrame(
             [
                 {
                     "Region": region,
-                    **{str(y): round(BASE_REGION_SCENARIOS[scenario][region][y] * 100, 1) for y in ANCHOR_YEARS},
+                    **{str(y): round(region_scenarios[scenario][region][y] * 100, 1) for y in ANCHOR_YEARS},
                 }
-                for region in REGION_ORDER
+                for region in model.regions
             ]
         )
         for scenario in SCENARIOS
@@ -68,17 +82,17 @@ def build_editable_tech_tables() -> dict[str, dict[str, pd.DataFrame]]:
 def combo_series_data(results: ForecastResults, region: str, series_type: str) -> pd.DataFrame:
     """All 3 scenarios' full actual+forecast series for one combination.
     region="Global" = summed across regions; series_type="Total" = summed
-    across powertrains (all-LDV)."""
+    across powertrains (all-vehicle)."""
     if series_type == "Total":
         df = (
             results.total_sales
-            if region == "Global"
+            if region == GLOBAL_ROW
             else results.region_sales.loc[results.region_sales["region"].eq(region)]
         )
     else:
         df = (
             results.powertrain_sales.loc[results.powertrain_sales["powertrain"].eq(series_type)]
-            if region == "Global"
+            if region == GLOBAL_ROW
             else results.region_and_powertrain_sales.loc[
                 results.region_and_powertrain_sales["region"].eq(region)
                 & results.region_and_powertrain_sales["powertrain"].eq(series_type)
@@ -87,34 +101,44 @@ def combo_series_data(results: ForecastResults, region: str, series_type: str) -
     return df.drop(columns=[c for c in ("region", "powertrain") if c in df.columns])
 
 
-def render_region_filter() -> list[str]:
-    """Region multiselect, shared widget key so the selection persists
-    across pages. An empty selection falls back to "all"."""
-    return (
-        st.multiselect("Region", REGION_ORDER, default=REGION_ORDER, key="region_filter")
-        or REGION_ORDER
-    )
-
-
-def render_powertrain_filter() -> list[str]:
-    """Powertrain multiselect, shared widget key so the selection persists
-    across pages. An empty selection falls back to "all"."""
+def render_region_filter(model: VehicleModel, key_suffix: str = "") -> list[str]:
+    """Region multiselect. `key_suffix` scopes it to one section, so each
+    section of the Forecasts page filters independently. An empty selection
+    falls back to "all"."""
     return (
         st.multiselect(
-            "Powertrain", ["PHEV", "BEV", "IC Only"],
-            default=["PHEV", "BEV", "IC Only"], key="powertrain_filter",
+            "Region", model.regions, default=model.regions,
+            key=model.wkey(f"region_filter{key_suffix}"),
         )
-        or ["PHEV", "BEV", "IC Only"]
+        or model.regions
     )
 
 
-def render_filters() -> tuple[list[str], list[str]]:
+def render_powertrain_filter(
+    model: VehicleModel, key_suffix: str = "", options: list[str] | None = None
+) -> list[str]:
+    """Powertrain multiselect. `options` defaults to the modelled powertrains.
+    An empty selection falls back to all of them."""
+    if options is None:
+        options = model.powertrains
+    return (
+        st.multiselect(
+            "Powertrain", options, default=options,
+            key=model.wkey(f"powertrain_filter{key_suffix}"),
+        )
+        or options
+    )
+
+
+def render_filters(
+    model: VehicleModel, key_suffix: str = "", powertrain_options: list[str] | None = None
+) -> tuple[list[str], list[str]]:
     """Region + Powertrain multiselects side by side."""
     col1, col2 = st.columns(2)
     with col1:
-        regions = render_region_filter()
+        regions = render_region_filter(model, key_suffix)
     with col2:
-        powertrains = render_powertrain_filter()
+        powertrains = render_powertrain_filter(model, key_suffix, powertrain_options)
     return regions, powertrains
 
 
@@ -160,45 +184,40 @@ def compute_filtered_view(
 
 
 def build_tech_tables(
+    model: VehicleModel,
     scenario: str,
     view: FilteredView,
-    region_powertrain_scenarios: dict | None = None,
-    region_scenarios: dict | None = None,
+    region_powertrain_scenarios: dict,
+    region_scenarios: dict,
     regions: list[str] | None = None,
 ) -> dict[str, pd.DataFrame]:
-    """3 tables matching the Excel scenario-config layout: PHEV, BEV, Total
-    LDVs. Each has one row per region (raw anchor-year config values, as
-    bare percentages) plus one or two rows pulled from the model's actual
-    results (scoped to whatever `view` was filtered to), NOT a naive
-    average/sum of the region rows above them:
+    """One table per tech, matching the Excel scenario-config layout: a
+    penetration table per modelled powertrain, then the all-vehicle totals.
+    Each has one row per region (raw anchor-year config values, as bare
+    percentages) plus one or two rows pulled from the model's actual results
+    (scoped to whatever `view` was filtered to), NOT a naive average/sum of the
+    region rows above them:
 
-    - PHEV/BEV tables: region rows are penetration share (% of that
-      region's all-LDV sales). "Global Penetration" is the true global
-      ratio (global powertrain sales / global all-LDV sales) - it does NOT
+    - Powertrain tables: region rows are penetration share (% of that
+      region's all-vehicle sales). "Global Penetration" is the true global
+      ratio (global powertrain sales / global all-vehicle sales) - it does NOT
       equal any average of the region rows, since penetration is a ratio of
       sums, not a sum of ratios.
-    - Total LDVs table: region rows are YoY sales growth %. "Global Growth"
+    - Totals table: region rows are YoY sales growth %. "Global Growth"
       is the sales-share-weighted average of the region growth rates (this
       one IS a weighted average, unlike penetration above). "Global Sales
       (m)" is the actual global sales volume that year, in millions of
       vehicles - a different unit entirely (absolute, not a rate).
 
-    `region_powertrain_scenarios`/`region_scenarios` default to the
-    scenario_config.py constants, but can be a custom scenario dict of the
-    same shape (e.g. the saved "Custom" scenario) - `scenario` must be a key
-    present in both.
+    `scenario` must be a case present in both scenario dicts.
     """
-    if region_powertrain_scenarios is None:
-        region_powertrain_scenarios = BASE_POWERTRAIN_AND_REGION_SCENARIOS
-    if region_scenarios is None:
-        region_scenarios = BASE_REGION_SCENARIOS
     if regions is None:
-        regions = REGION_ORDER
+        regions = model.regions
 
     available_powertrains = set(view.rollup_pt["powertrain"])
 
     tables = {}
-    for powertrain in ["PHEV", "BEV"]:
+    for powertrain in model.modelled_powertrains:
         if powertrain not in available_powertrains:
             continue  # filtered out by the powertrain filter - nothing to show
         rows = [
@@ -251,7 +270,7 @@ def build_tech_tables(
             },
         }
     )
-    tables["Total LDVs"] = pd.DataFrame(total_rows)
+    tables[model.total_label] = pd.DataFrame(total_rows)
 
     return tables
 
@@ -261,23 +280,29 @@ def append_global_rollup(detail: pd.DataFrame, rollup: pd.DataFrame) -> pd.DataF
     so both frames share the same columns for to_wide(). `detail`/`rollup`
     are expected to already be filtered to one scenario."""
     rollup = rollup.copy()
-    rollup.insert(0, "region", "Global")
+    rollup.insert(0, "region", GLOBAL_ROW)
     return pd.concat([detail, rollup], ignore_index=True)
 
 
-def order_sales_table(wide: pd.DataFrame) -> pd.DataFrame:
+def order_sales_table(model: VehicleModel, wide: pd.DataFrame) -> pd.DataFrame:
     """Row/column order for the wide sales tables: Powertrain first (if
-    present), then Region, then Scenario (if present) - all using the app's
+    present), then Region, then Scenario (if present) - all using the model's
     canonical ordering, with "Global" always sorted last within its group
     rather than wherever it'd otherwise fall."""
     wide = wide.copy()
-    region_order = [*REGION_ORDER, "Global"]
+    region_order = [*model.regions, GLOBAL_ROW]
     wide["region"] = pd.Categorical(wide["region"], categories=region_order, ordered=True)
 
     sort_cols: list[str] = []
     lead_cols: list[str] = []
     if "powertrain" in wide.columns:
-        wide["powertrain"] = pd.Categorical(wide["powertrain"], categories=POWERTRAIN_ORDER, ordered=True)
+        # Any non-forecast powertrain shown via "include ... not forecast by
+        # this model" sorts after the modelled ones.
+        seen = list(dict.fromkeys(wide["powertrain"].dropna()))
+        pt_order = [*model.powertrains, *[p for p in seen if p not in model.powertrains]]
+        wide["powertrain"] = pd.Categorical(
+            wide["powertrain"], categories=pt_order, ordered=True
+        )
         sort_cols.append("powertrain")
         lead_cols.append("powertrain")
     sort_cols.append("region")
@@ -292,11 +317,26 @@ def order_sales_table(wide: pd.DataFrame) -> pd.DataFrame:
     return wide[[*lead_cols, *remaining]].reset_index(drop=True)
 
 
-def by_region_chart(detail_rp: pd.DataFrame, dash_col: str | None = None):
+def render_sales_table(wide: pd.DataFrame) -> None:
+    """Draw a wide sales table with the year columns at 1dp. The model carries
+    full float precision, which for million-vehicle figures is far more digits
+    than it's meaningful to; formatting on the Styler rather than rounding the
+    frame keeps the underlying values intact for sorting and download."""
+    year_cols = wide.select_dtypes("number").columns
+    st.dataframe(wide.style.format("{:.1f}", subset=year_cols), hide_index=True)
+
+
+def by_region_chart(
+    model: VehicleModel, detail_rp: pd.DataFrame, dash_col: str | None = None,
+    powertrain_order: list[str] | None = None,
+):
     """Facet-by-region, color-by-powertrain line chart. `dash_col` (e.g.
     "scenario") adds a 3rd dimension via line dash pattern - used only by
-    the Main Dashboard's all-scenarios "By region" view."""
-    category_orders = {"region": REGION_ORDER, "powertrain": POWERTRAIN_ORDER}
+    the Forecasts page's all-scenarios "By region" view."""
+    category_orders = {
+        "region": model.regions,
+        "powertrain": powertrain_order or model.powertrains,
+    }
     if dash_col:
         category_orders[dash_col] = SCENARIOS
     fig = px.line(
@@ -315,7 +355,10 @@ def by_region_chart(detail_rp: pd.DataFrame, dash_col: str | None = None):
     return fig
 
 
-def global_powertrain_chart(rollup_pt: pd.DataFrame, chart_type: str):
+def global_powertrain_chart(
+    model: VehicleModel, rollup_pt: pd.DataFrame, chart_type: str,
+    powertrain_order: list[str] | None = None,
+):
     """"Global trend"/"Global split" chart for one scenario's powertrain rollup."""
     plot_fn = px.line if chart_type == "Global trend" else px.bar
     fig = plot_fn(
@@ -323,7 +366,7 @@ def global_powertrain_chart(rollup_pt: pd.DataFrame, chart_type: str):
         x="year",
         y="sales",
         color="powertrain",
-        category_orders={"powertrain": POWERTRAIN_ORDER},
+        category_orders={"powertrain": powertrain_order or model.powertrains},
         labels={"sales": "Sales (million vehicles)", "year": "Year"},
     )
     if chart_type == "Global split":
@@ -331,76 +374,224 @@ def global_powertrain_chart(rollup_pt: pd.DataFrame, chart_type: str):
     return fig
 
 
-def region_trend_chart(combined: pd.DataFrame):
+def region_trend_chart(model: VehicleModel, combined: pd.DataFrame):
     """Region totals "Trend" chart (region + Global rollup), for one scenario."""
     fig = px.line(
         combined,
         x="year",
         y="sales",
         color="region",
-        category_orders={"region": [*REGION_ORDER, "Global"]},
+        category_orders={"region": [*model.regions, GLOBAL_ROW]},
         labels={"sales": "Sales (million vehicles)", "year": "Year"},
     )
-    fig.update_traces(selector={"name": "Global"}, line=dict(dash="dash", width=4))
+    fig.update_traces(selector={"name": GLOBAL_ROW}, line=dict(dash="dash", width=4))
     return fig
 
 
-def region_split_chart(detail_region: pd.DataFrame):
+def region_split_chart(model: VehicleModel, detail_region: pd.DataFrame):
     """Region totals "Split by region" stacked bar chart, for one scenario."""
     fig = px.bar(
         detail_region,
         x="year",
         y="sales",
         color="region",
-        category_orders={"region": REGION_ORDER},
+        category_orders={"region": model.regions},
         labels={"sales": "Sales (million vehicles)", "year": "Year"},
     )
     fig.update_layout(barmode="stack")
     return fig
 
 
-def render_region_powertrain_section(view: FilteredView) -> None:
-    combined = append_global_rollup(view.detail_rp, view.rollup_pt)
-    view_mode = st.segmented_control(
-        "View", ["Table", "Chart"], default="Table", key="s1_view"
-    )
-    if view_mode != "Chart":
-        st.dataframe(order_sales_table(to_wide(combined)), hide_index=True)
-        return
+OTHER_POWERTRAIN_NOTE = (
+    "{names} are not forecast by this model. Those figures come straight from "
+    "the source data's own published projections, unchanged, and stop when the "
+    "source data does."
+)
 
-    chart_type = st.segmented_control(
-        "Chart type",
-        ["By region", "Global trend", "Global split"],
-        default="By region",
-        key="s1_chart_type",
+
+def render_other_powertrain_toggle(model: VehicleModel, key_suffix: str = "") -> bool:
+    """The opt-in for powertrains this model doesn't forecast. Off by default -
+    supplementary context rather than part of the forecast."""
+    if not model.other_powertrains:
+        return False
+    names = " and ".join(model.other_powertrain_labels)
+    shown = st.checkbox(
+        f"Include {names} (not forecast by this model)",
+        value=False,
+        key=model.wkey(f"show_other_powertrains{key_suffix}"),
     )
+    if shown:
+        st.caption(OTHER_POWERTRAIN_NOTE.format(names=names))
+    return shown
+
+
+def region_totals_from_powertrains(detail_rp: pd.DataFrame) -> pd.DataFrame:
+    """All-vehicle sales per region, summed over whichever powertrains are
+    selected. With every powertrain selected this reproduces region_sales
+    exactly, since the powertrains reconcile to it."""
+    out = (
+        detail_rp.groupby(["region", "year", "data_type"])["sales"]
+        .sum()
+        .reset_index()
+        .sort_values(["region", "year"], ignore_index=True)
+    )
+    out["yoy_pct"] = out.groupby("region")["sales"].pct_change(fill_method=None)
+    return out
+
+
+def render_region_powertrain_section(
+    model: VehicleModel,
+    results: ForecastResults,
+    scenario: str,
+    regions: list[str],
+    powertrains: list[str],
+) -> None:
+    """Sales split by region and powertrain. Owns its own view controls and the
+    opt-in for the non-forecast powertrains, so the filters above it only ever
+    decide what is displayed."""
+    view_mode = st.segmented_control(
+        "View", ["Chart", "Table"], default="Chart", key=model.wkey("s1_view")
+    )
+    chart_type = None
+    if view_mode != "Table":
+        chart_type = st.segmented_control(
+            "Chart type",
+            ["By region", "Global trend", "Global split"],
+            default="By region",
+            key=model.wkey("s1_chart_type"),
+        )
+
+    # Below the view and chart-type controls, per the page layout.
+    show_other = render_other_powertrain_toggle(model)
+
+    shown = list(powertrains)
+    if show_other:
+        shown += [p for p in model.other_powertrain_labels if p not in shown]
+    view = compute_filtered_view(results, scenario, regions, shown)
+
+    if view_mode == "Table":
+        combined = append_global_rollup(view.detail_rp, view.rollup_pt)
+        render_sales_table(order_sales_table(model, to_wide(combined)))
+        return
 
     if chart_type == "By region":
-        fig = by_region_chart(view.detail_rp)
+        fig = by_region_chart(model, view.detail_rp, powertrain_order=shown)
     else:
-        fig = global_powertrain_chart(view.rollup_pt, chart_type)
+        fig = global_powertrain_chart(model, view.rollup_pt, chart_type, powertrain_order=shown)
         fig.update_layout(height=600)
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=model.wkey("s1_chart"))
 
 
-def render_region_totals_section(view: FilteredView) -> None:
-    combined = append_global_rollup(view.detail_region, view.rollup_total)
-    view_mode = st.segmented_control(
-        "View", ["Table", "Chart"], default="Table", key="s2_view"
+def render_region_totals_section(
+    model: VehicleModel,
+    results: ForecastResults,
+    scenario: str,
+    regions: list[str],
+    powertrains: list[str],
+) -> None:
+    """All-vehicle sales by region. The powertrain filter decides which
+    powertrains make up the total; with every one selected - the default - it
+    is the true all-vehicle figure."""
+    view = compute_filtered_view(results, scenario, regions, powertrains)
+    detail_region = region_totals_from_powertrains(view.detail_rp)
+    rollup_total = aggregate_total_sales(detail_region.assign(scenario=scenario)).drop(
+        columns="scenario"
     )
-    if view_mode != "Chart":
-        st.dataframe(order_sales_table(to_wide(combined)), hide_index=True)
+    combined = append_global_rollup(detail_region, rollup_total)
+
+    view_mode = st.segmented_control(
+        "View", ["Chart", "Table"], default="Chart", key=model.wkey("s2_view")
+    )
+    if view_mode == "Table":
+        render_sales_table(order_sales_table(model, to_wide(combined)))
         return
 
     chart_type = st.segmented_control(
-        "Chart type", ["Trend", "Split by region"], default="Trend", key="s2_chart_type"
+        "Chart type", ["Trend", "Split by region"], default="Trend",
+        key=model.wkey("s2_chart_type"),
     )
 
     if chart_type == "Trend":
-        fig = region_trend_chart(combined)
+        fig = region_trend_chart(model, combined)
     else:
-        fig = region_split_chart(view.detail_region)
+        fig = region_split_chart(model, detail_region)
     fig.update_layout(height=600)
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=model.wkey("s2_chart"))
+
+
+# ---------------------------------------------------------------------------
+# Per-tech scenario sales outputs (Edit Scenario Configs page)
+# ---------------------------------------------------------------------------
+
+
+def scenario_output_data(model: VehicleModel, results: ForecastResults, tech: str) -> pd.DataFrame:
+    """One tech's sales across every region and scenario case.
+
+    tech=<the model's total label> is the all-vehicle regional total;
+    otherwise it's that powertrain's own sales. The powertrain column is
+    dropped - the caller already knows which tech this is, so repeating it in
+    every row would just be a constant column.
+
+    Returns: region | scenario | year | sales | data_type (+ metric columns)
+    """
+    if tech == model.total_label:
+        return results.region_sales
+    detail = results.region_and_powertrain_sales
+    return detail.loc[detail["powertrain"].eq(tech)].drop(columns="powertrain")
+
+
+# A scenario case keeps one colour whether it's the saved line or the edited
+# overlay, so the pair reads as one series in two states.
+CASE_COLOURS = dict(zip(SCENARIOS, px.colors.qualitative.Plotly))
+
+UPDATED_SUFFIX = " - Updated"
+
+
+def scenario_overlay_chart(
+    model: VehicleModel, original: pd.DataFrame, updated: pd.DataFrame | None, split_by: str
+):
+    """Saved values as solid lines, with any edited series overlaid dashed.
+
+    split_by="Region" gives one panel per region coloured by scenario case;
+    split_by="Scenario case" flips it - one panel per case coloured by region.
+    Either way the edited overlay takes the same colour as the line it
+    replaces and is named "<series> - Updated", so the legend pairs them.
+    """
+    region_colours = dict(zip(model.regions, px.colors.qualitative.Plotly))
+    if split_by == "Scenario case":
+        facet, colour_col = "scenario", "region"
+        facet_order, colour_order, palette = SCENARIOS, model.regions, region_colours
+    else:
+        facet, colour_col = "region", "scenario"
+        facet_order, colour_order, palette = model.regions, SCENARIOS, CASE_COLOURS
+
+    frames = [original.assign(series=original[colour_col])]
+    if updated is not None and not updated.empty:
+        frames.append(updated.assign(series=updated[colour_col] + UPDATED_SUFFIX))
+    data = pd.concat(frames, ignore_index=True)
+
+    colour_map = {
+        **palette,
+        **{f"{name}{UPDATED_SUFFIX}": colour for name, colour in palette.items()},
+    }
+    series_order = [*colour_order, *[f"{n}{UPDATED_SUFFIX}" for n in colour_order]]
+
+    fig = px.line(
+        data,
+        x="year",
+        y="sales",
+        color="series",
+        facet_col=facet,
+        facet_col_wrap=2,
+        color_discrete_map=colour_map,
+        category_orders={facet: facet_order, "series": series_order},
+        labels={"sales": "Sales (million vehicles)", "year": "Year", "series": ""},
+    )
+    fig.for_each_trace(
+        lambda t: t.update(line=dict(dash="dash")) if t.name.endswith(UPDATED_SUFFIX) else None
+    )
+    fig.update_yaxes(matches=None, showticklabels=True)
+    fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+    return fig
