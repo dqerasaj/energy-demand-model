@@ -18,6 +18,29 @@ store, so saving or renaming a scenario changes the sidebar on the next rerun.
 
 import streamlit as st
 
+# TEMPORARY deploy diagnostic - remove once the Cloud ImportError is resolved.
+# Streamlit redacts exception messages, so the real cause has to be written to
+# the page instead of raised.
+_diag = []
+try:
+    import data_loader as _dl
+
+    _diag.append(f"data_loader file: {_dl.__file__}")
+    _diag.append(f"data_loader exports: {[n for n in dir(_dl) if n.startswith('get_')]}")
+except BaseException as _e:  # noqa: BLE001 - diagnostic, must not swallow silently
+    import traceback as _tb
+
+    _diag.append(f"data_loader import FAILED: {type(_e).__name__}: {_e}")
+    _diag.append("".join(_tb.format_exc()))
+try:
+    import os as _os
+
+    _diag.append(f"cwd: {_os.getcwd()}")
+    _diag.append(f"py files present: {sorted(f for f in _os.listdir('.') if f.endswith('.py'))}")
+except BaseException as _e:  # noqa: BLE001
+    _diag.append(f"listdir failed: {_e}")
+st.warning("DEPLOY DIAGNOSTIC\n\n" + "\n\n".join(f"- {line}" for line in _diag))
+
 from auth import check_password
 from nav import NavSection, all_pages, render_sidebar
 import page_dashboard
