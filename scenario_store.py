@@ -6,8 +6,8 @@ Every function here takes the VehicleModel it applies to. The LDV and HDV
 models keep entirely separate stores - a scenario's regions and powertrains
 only mean anything for the model it was built for.
 
-Terminology, which is easy to trip over: a *scenario case* is Base Case /
-Faster Transition / Slower Transition - the three columns that have always
+Terminology, which is easy to trip over: a *scenario case* is Slower Transition /
+Base Case / Faster Transition - the three columns that have always
 existed. A *scenario* is a complete named set of all three cases' anchor
 values. One scenario contains three cases.
 

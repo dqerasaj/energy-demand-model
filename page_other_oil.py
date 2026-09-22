@@ -16,7 +16,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from forecast_model import ANCHOR_YEARS, SCENARIO_CHART_ORDER, SCENARIOS
+from forecast_model import ANCHOR_YEARS, BASE_CASE, SCENARIOS
 from other_oil_forecast_model import OtherOilResults, to_wide
 from other_oil_model_cache import get_other_oil_results, get_other_oil_scenarios
 from other_oil_scenario_store import (
@@ -98,7 +98,7 @@ def _trend_chart(data, metric: str, facet_col: str | None = None):
         y="value",
         color="sector",
         facet_col=facet_col,
-        category_orders={"sector": SECTOR_ORDER, "scenario": SCENARIO_CHART_ORDER},
+        category_orders={"sector": SECTOR_ORDER, "scenario": SCENARIOS},
         labels={"value": METRIC_LABELS[metric], "year": "Year"},
     )
     if facet_col:
@@ -140,7 +140,7 @@ def _trend_by_sector_chart(data, metric: str):
         color="scenario",
         facet_col="sector",
         facet_col_wrap=2,
-        category_orders={"sector": sectors, "scenario": SCENARIO_CHART_ORDER},
+        category_orders={"sector": sectors, "scenario": SCENARIOS},
         labels={"value": METRIC_LABELS[metric], "year": "Year"},
     )
     if metric != OIL:
@@ -170,7 +170,7 @@ def _split_chart(data, metric: str, facet_col: str | None = None):
         y="value",
         color="sector",
         facet_col=facet_col,
-        category_orders={"sector": SECTOR_ORDER, "scenario": SCENARIO_CHART_ORDER},
+        category_orders={"sector": SECTOR_ORDER, "scenario": SCENARIOS},
         labels={"value": METRIC_LABELS[metric], "year": "Year"},
     )
     fig.update_layout(barmode="stack")
@@ -292,7 +292,7 @@ def _render_scenario_config(show_all: bool, scenario: str) -> None:
         _render_case_config(scenarios[scenario])
         return
 
-    for case, col in zip(SCENARIO_CHART_ORDER, st.columns(3)):
+    for case, col in zip(SCENARIOS, st.columns(3)):
         with col:
             st.markdown(f"**{case}**")
             _render_case_config(scenarios[case])
@@ -333,7 +333,7 @@ def render() -> None:
     # it's skipped for a run, so the last real choice is tracked explicitly
     # rather than relying on the hidden selectbox's key to survive.
     last_key, show_all_key = f"{WKEY}_last_case", f"{WKEY}_show_all"
-    last_case = st.session_state.get(last_key, SCENARIOS[0])
+    last_case = st.session_state.get(last_key, BASE_CASE)
 
     if st.session_state.get(show_all_key, False):
         st.selectbox("Scenario case", ["All"], disabled=True, key=f"{WKEY}_case_all")

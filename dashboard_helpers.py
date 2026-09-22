@@ -16,7 +16,7 @@ import streamlit as st
 
 from forecast_model import (
     ANCHOR_YEARS,
-    SCENARIO_CHART_ORDER,
+    BASE_CASE,
     SCENARIOS,
     ForecastResults,
     aggregate_powertrain_sales,
@@ -25,7 +25,7 @@ from forecast_model import (
 )
 from vehicle_models import VehicleModel
 
-# ANCHOR_YEARS and SCENARIOS are imported above purely so pages can keep
+# ANCHOR_YEARS, BASE_CASE and SCENARIOS are imported above purely so pages can keep
 # getting the scenario vocabulary from here rather than reaching into the
 # engine themselves.
 
@@ -345,7 +345,7 @@ def by_region_chart(
         "powertrain": powertrain_order or model.powertrains,
     }
     if dash_col:
-        category_orders[dash_col] = SCENARIO_CHART_ORDER
+        category_orders[dash_col] = SCENARIOS
     fig = px.line(
         detail_rp,
         x="year",
@@ -388,7 +388,7 @@ def global_powertrain_chart(
         facet_col=facet_col,
         category_orders={
             "powertrain": powertrain_order or model.powertrains,
-            "scenario": SCENARIO_CHART_ORDER,
+            "scenario": SCENARIOS,
         },
         labels={"sales": "Sales (million vehicles)", "year": "Year"},
     )
@@ -588,10 +588,10 @@ def scenario_overlay_chart(
     region_colours = dict(zip(model.regions, px.colors.qualitative.Plotly))
     if split_by == "Scenario case":
         facet, colour_col = "scenario", "region"
-        facet_order, colour_order, palette = SCENARIO_CHART_ORDER, model.regions, region_colours
+        facet_order, colour_order, palette = SCENARIOS, model.regions, region_colours
     else:
         facet, colour_col = "region", "scenario"
-        facet_order, colour_order, palette = model.regions, SCENARIO_CHART_ORDER, CASE_COLOURS
+        facet_order, colour_order, palette = model.regions, SCENARIOS, CASE_COLOURS
 
     frames = [original.assign(series=original[colour_col])]
     if updated is not None and not updated.empty:

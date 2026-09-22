@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from forecast_model import SCENARIO_CHART_ORDER
+from forecast_model import SCENARIOS
 from other_oil_scenario_config import SECTOR_ORDER, config_table
 from other_oil_scenario_store import (
     get_main_scenario_name,
@@ -91,7 +91,7 @@ def render(name: str) -> None:
 
     for sector in SECTOR_ORDER:
         st.subheader(sector)
-        for case, col in zip(SCENARIO_CHART_ORDER, st.columns(3)):
+        for case, col in zip(SCENARIOS, st.columns(3)):
             with col:
                 st.caption(case)
                 st.dataframe(

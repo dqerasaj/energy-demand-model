@@ -17,7 +17,7 @@ from dashboard_helpers import (
     PT_SCENARIO_TREND_PER_REGION,
     REGIONAL_SPLIT_PER_SCENARIO,
     REGIONAL_TREND_PER_SCENARIO,
-    SCENARIO_CHART_ORDER,
+    BASE_CASE,
     SCENARIOS,
     region_totals_from_powertrains,
     append_global_rollup,
@@ -180,7 +180,7 @@ def render_region_totals_section_all_scenarios(
         st.plotly_chart(fig, use_container_width=True, key=model.wkey("s2_chart_one"))
         return
 
-    for s, col in zip(SCENARIO_CHART_ORDER, st.columns(3)):
+    for s, col in zip(SCENARIOS, st.columns(3)):
         with col:
             st.caption(s)
             detail, combined = totals_for(s)
@@ -209,7 +209,7 @@ def render(model: VehicleModel) -> None:
     # above it can react to the same run's toggle.
     last_key = model.wkey("last_single_scenario")
     show_all_key = model.wkey("show_all_scenario_configs")
-    last_scenario = st.session_state.get(last_key, SCENARIOS[0])
+    last_scenario = st.session_state.get(last_key, BASE_CASE)
     show_all_scenarios = st.session_state.get(show_all_key, False)
 
     if show_all_scenarios:

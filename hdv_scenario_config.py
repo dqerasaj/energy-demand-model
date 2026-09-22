@@ -31,7 +31,12 @@ from forecast_model import ANCHOR_YEARS, SCENARIOS
 
 # The schema file's own short names, mapped onto the names used everywhere else
 # in the app. REGION_ORDER is the display order that follows from it.
-CASE_NAMES = dict(zip(["base", "faster", "slower"], SCENARIOS))
+CASE_NAMES = {
+    "slower": "Slower Transition",
+    "base": "Base Case",
+    "faster": "Faster Transition",
+}
+assert sorted(CASE_NAMES.values()) == sorted(SCENARIOS)
 REGION_NAMES = {"china": "China", "usa": "USA", "row": "RoW"}
 REGION_ORDER = list(REGION_NAMES.values())
 

@@ -41,14 +41,15 @@ FORECAST_YEARS = np.arange(FORECAST_START, FORECAST_END + 1)
 
 # The three scenario cases, and the years a scenario schedule sets values at.
 # Shared for the same reason.
-SCENARIOS = ["Base Case", "Faster Transition", "Slower Transition"]
+#
+# SCENARIOS is the one order the cases appear in everywhere - pickers, config
+# tables, columns, legends and chart panels - slowest transition to fastest,
+# so they read as a spectrum rather than starting in the middle. Anything that
+# pairs cases with other values must match on name, never on position.
+# BASE_CASE is named on its own because it's what the pages open on.
+BASE_CASE = "Base Case"
+SCENARIOS = ["Slower Transition", BASE_CASE, "Faster Transition"]
 ANCHOR_YEARS = [2025, 2030, 2035, 2040, 2050]
-
-# The order the cases are drawn in - slowest transition to fastest, so panels
-# and legends read as a spectrum rather than starting in the middle. Charts
-# only: SCENARIOS stays the canonical order for pickers, tables and storage,
-# where "Base Case first" is what people expect to land on.
-SCENARIO_CHART_ORDER = ["Slower Transition", "Base Case", "Faster Transition"]
 
 # Used to identify only year cols (excluding monthly and quarterly cols)
 _ANNUAL_COL = re.compile(r"^\d{4}$")

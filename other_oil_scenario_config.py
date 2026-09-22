@@ -32,7 +32,12 @@ from forecast_model import ANCHOR_YEARS, SCENARIOS
 
 # The schema's own case names, mapped onto the names used everywhere else in
 # the app. The file says "Base"; the app says "Base Case".
-CASE_NAMES = dict(zip(["Base", "Faster Transition", "Slower Transition"], SCENARIOS))
+CASE_NAMES = {
+    "Slower Transition": "Slower Transition",
+    "Base": "Base Case",
+    "Faster Transition": "Faster Transition",
+}
+assert sorted(CASE_NAMES.values()) == sorted(SCENARIOS)
 
 # Display order for the four sectors - the order they appear in the schema.
 SECTOR_ORDER = ["Petrochemicals", "Shipping", "Aviation", "Buildings/Power/Other"]

@@ -27,7 +27,7 @@ import plotly.express as px
 import streamlit as st
 
 from data_loader import get_other_oil_csv_path
-from forecast_model import ANCHOR_YEARS, SCENARIO_CHART_ORDER, SCENARIOS
+from forecast_model import ANCHOR_YEARS, SCENARIOS
 from other_oil_forecast_model import OtherOilResults, to_wide
 from other_oil_scenario_config import (
     LEVER_COLUMN,
@@ -227,8 +227,8 @@ def _overlay_chart(saved: pd.DataFrame, updated: pd.DataFrame | None):
         **{f"{case}{UPDATED_SUFFIX}": colour for case, colour in CASE_COLOURS.items()},
     }
     order = [
-        *SCENARIO_CHART_ORDER,
-        *[f"{case}{UPDATED_SUFFIX}" for case in SCENARIO_CHART_ORDER],
+        *SCENARIOS,
+        *[f"{case}{UPDATED_SUFFIX}" for case in SCENARIOS],
     ]
 
     fig = px.line(
@@ -349,7 +349,7 @@ def render() -> None:
     for sector in SECTOR_ORDER:
         st.subheader(sector)
         tables[sector] = {}
-        for case, col in zip(SCENARIO_CHART_ORDER, st.columns(3)):
+        for case, col in zip(SCENARIOS, st.columns(3)):
             with col:
                 st.caption(case)
                 tables[sector][case] = st.data_editor(

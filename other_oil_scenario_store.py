@@ -16,8 +16,8 @@ so a scenario can be handed straight to it.
 There is no model argument anywhere here: there is one Other Oil model, so the
 store is a single file rather than one per model.
 
-Terminology matches the vehicle models: a *scenario case* is Base Case /
-Faster Transition / Slower Transition, and a *scenario* is a complete named set
+Terminology matches the vehicle models: a *scenario case* is Slower Transition /
+Base Case / Faster Transition, and a *scenario* is a complete named set
 of all three cases' anchor values.
 
 saved_scenarios_other_oil.json survives a browser refresh and an app restart
