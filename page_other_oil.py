@@ -207,12 +207,14 @@ def _chart_type_control(metric: str, show_all: bool) -> str:
     # Streamlit sends the new default but leaves set_value False, so a widget
     # already mounted in the browser keeps its stale selection and renders with
     # nothing highlighted. Writing the value through session_state is what
-    # actually pushes it to the frontend.
+    # actually pushes it to the frontend. That seeding runs before every
+    # render, so the widget takes no `default=`: it would always be ignored,
+    # and Streamlit warns when a keyed widget gets both.
     key = f"{WKEY}_chart_{metric}"
     if st.session_state.get(key) not in chart_types:
         st.session_state[key] = chart_types[0]
 
-    return st.segmented_control("Chart type", chart_types, default=chart_types[0], key=key)
+    return st.segmented_control("Chart type", chart_types, key=key)
 
 
 def _render_table(data) -> None:
