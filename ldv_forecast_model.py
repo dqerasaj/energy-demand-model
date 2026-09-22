@@ -23,7 +23,7 @@ import pandas as pd
 
 from forecast_model import DataSpec, ForecastResults, to_wide
 from forecast_model import run_model as _run_model
-from scenario_config import (
+from ldv_scenario_config import (
     BASE_POWERTRAIN_AND_REGION_SCENARIOS,
     BASE_REGION_SCENARIOS,
 )

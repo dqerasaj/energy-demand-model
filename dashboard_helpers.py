@@ -16,6 +16,7 @@ import streamlit as st
 
 from forecast_model import (
     ANCHOR_YEARS,
+    SCENARIO_CHART_ORDER,
     SCENARIOS,
     ForecastResults,
     aggregate_powertrain_sales,
@@ -31,6 +32,32 @@ from vehicle_models import VehicleModel
 # The synthetic region the filtered rollups are stacked under - "sum of what's
 # currently shown", not necessarily the true worldwide figure.
 GLOBAL_ROW = "Global"
+
+# Chart type labels, on the same grammar as the Other Oil page:
+# "<what varies inside a panel> <form> per <what each panel is>", where "trend"
+# is lines and "split" is stacked bars. The "per ..." suffix means the chart is
+# faceted, so its absence marks the single-panel charts - which is why each
+# pair below has an all-cases twin.
+#
+# The "Global ..." charts are named for powertrain, not region, because that is
+# what they actually break down: their input is the rollup across every region
+# shown, which has no region column left at all.
+PT_TREND_PER_REGION = "Powertrain trend per region"
+GLOBAL_PT_TREND = "Global powertrain trend"
+GLOBAL_PT_SPLIT = "Global powertrain split"
+
+PT_SCENARIO_TREND_PER_REGION = "Powertrain and scenario trend per region"
+GLOBAL_PT_TREND_PER_SCENARIO = "Global powertrain trend per scenario"
+GLOBAL_PT_SPLIT_PER_SCENARIO = "Global powertrain split per scenario"
+
+REGIONAL_TREND = "Regional trend"
+REGIONAL_SPLIT = "Regional split"
+REGIONAL_TREND_PER_SCENARIO = "Regional trend per scenario"
+REGIONAL_SPLIT_PER_SCENARIO = "Regional split per scenario"
+
+# The stacked-bar members of the above, so the chart builder can tell which
+# form it is being asked for without re-deriving it from the label text.
+_SPLIT_CHARTS = {GLOBAL_PT_SPLIT, GLOBAL_PT_SPLIT_PER_SCENARIO}
 
 
 def build_editable_tech_tables(
@@ -312,13 +339,13 @@ def by_region_chart(
 ):
     """Facet-by-region, color-by-powertrain line chart. `dash_col` (e.g.
     "scenario") adds a 3rd dimension via line dash pattern - used only by
-    the Forecasts page's all-scenarios "By region" view."""
+    the all-scenarios PT_SCENARIO_TREND_PER_REGION view."""
     category_orders = {
         "region": model.regions,
         "powertrain": powertrain_order or model.powertrains,
     }
     if dash_col:
-        category_orders[dash_col] = SCENARIOS
+        category_orders[dash_col] = SCENARIO_CHART_ORDER
     fig = px.line(
         detail_rp,
         x="year",
@@ -338,24 +365,43 @@ def by_region_chart(
 def global_powertrain_chart(
     model: VehicleModel, rollup_pt: pd.DataFrame, chart_type: str,
     powertrain_order: list[str] | None = None,
+    facet_col: str | None = None,
 ):
-    """"Global trend"/"Global split" chart for one scenario's powertrain rollup."""
-    plot_fn = px.line if chart_type == "Global trend" else px.bar
+    """Global powertrain trend/split - the rollup across every region shown.
+
+    `chart_type` is one of the GLOBAL_PT_* labels; only its form (line vs
+    stacked bar) is read here.
+
+    `facet_col` ("scenario") puts the three cases side by side as panels of one
+    figure rather than as three separate figures. That draws the powertrain
+    legend once for the whole figure instead of repeating it per case, and
+    shares one y-axis across the panels, so the cases are comparable by eye -
+    three independent figures each autoscale, which flattens the difference
+    between a high case and a low one.
+    """
+    plot_fn = px.bar if chart_type in _SPLIT_CHARTS else px.line
     fig = plot_fn(
         rollup_pt,
         x="year",
         y="sales",
         color="powertrain",
-        category_orders={"powertrain": powertrain_order or model.powertrains},
+        facet_col=facet_col,
+        category_orders={
+            "powertrain": powertrain_order or model.powertrains,
+            "scenario": SCENARIO_CHART_ORDER,
+        },
         labels={"sales": "Sales (million vehicles)", "year": "Year"},
     )
-    if chart_type == "Global split":
+    if chart_type in _SPLIT_CHARTS:
         fig.update_layout(barmode="stack")
+    if facet_col:
+        # px titles facets "scenario=Base Case"; only the value is wanted.
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
     return fig
 
 
 def region_trend_chart(model: VehicleModel, combined: pd.DataFrame):
-    """Region totals "Trend" chart (region + Global rollup), for one scenario."""
+    """Region totals line chart (REGIONAL_TREND), region + Global rollup."""
     fig = px.line(
         combined,
         x="year",
@@ -369,7 +415,7 @@ def region_trend_chart(model: VehicleModel, combined: pd.DataFrame):
 
 
 def region_split_chart(model: VehicleModel, detail_region: pd.DataFrame):
-    """Region totals "Split by region" stacked bar chart, for one scenario."""
+    """Region totals stacked bar chart (REGIONAL_SPLIT), for one scenario."""
     fig = px.bar(
         detail_region,
         x="year",
@@ -436,8 +482,8 @@ def render_region_powertrain_section(
     if view_mode != "Table":
         chart_type = st.segmented_control(
             "Chart type",
-            ["By region", "Global trend", "Global split"],
-            default="By region",
+            [PT_TREND_PER_REGION, GLOBAL_PT_TREND, GLOBAL_PT_SPLIT],
+            default=PT_TREND_PER_REGION,
             key=model.wkey("s1_chart_type"),
         )
 
@@ -454,7 +500,7 @@ def render_region_powertrain_section(
         render_sales_table(order_sales_table(model, to_wide(combined)))
         return
 
-    if chart_type == "By region":
+    if chart_type == PT_TREND_PER_REGION:
         fig = by_region_chart(model, view.detail_rp, powertrain_order=shown)
     else:
         fig = global_powertrain_chart(model, view.rollup_pt, chart_type, powertrain_order=shown)
@@ -488,11 +534,11 @@ def render_region_totals_section(
         return
 
     chart_type = st.segmented_control(
-        "Chart type", ["Trend", "Split by region"], default="Trend",
+        "Chart type", [REGIONAL_TREND, REGIONAL_SPLIT], default=REGIONAL_TREND,
         key=model.wkey("s2_chart_type"),
     )
 
-    if chart_type == "Trend":
+    if chart_type == REGIONAL_TREND:
         fig = region_trend_chart(model, combined)
     else:
         fig = region_split_chart(model, detail_region)
@@ -542,10 +588,10 @@ def scenario_overlay_chart(
     region_colours = dict(zip(model.regions, px.colors.qualitative.Plotly))
     if split_by == "Scenario case":
         facet, colour_col = "scenario", "region"
-        facet_order, colour_order, palette = SCENARIOS, model.regions, region_colours
+        facet_order, colour_order, palette = SCENARIO_CHART_ORDER, model.regions, region_colours
     else:
         facet, colour_col = "region", "scenario"
-        facet_order, colour_order, palette = model.regions, SCENARIOS, CASE_COLOURS
+        facet_order, colour_order, palette = model.regions, SCENARIO_CHART_ORDER, CASE_COLOURS
 
     frames = [original.assign(series=original[colour_col])]
     if updated is not None and not updated.empty:

@@ -12,6 +12,12 @@ import pandas as pd
 import streamlit as st
 
 from dashboard_helpers import (
+    GLOBAL_PT_SPLIT_PER_SCENARIO,
+    GLOBAL_PT_TREND_PER_SCENARIO,
+    PT_SCENARIO_TREND_PER_REGION,
+    REGIONAL_SPLIT_PER_SCENARIO,
+    REGIONAL_TREND_PER_SCENARIO,
+    SCENARIO_CHART_ORDER,
     SCENARIOS,
     region_totals_from_powertrains,
     append_global_rollup,
@@ -80,8 +86,12 @@ def render_region_powertrain_section_all_scenarios(
 
     chart_type = st.segmented_control(
         "Chart type",
-        ["By region", "Global trend", "Global split"],
-        default="By region",
+        [
+            GLOBAL_PT_TREND_PER_SCENARIO,
+            PT_SCENARIO_TREND_PER_REGION,
+            GLOBAL_PT_SPLIT_PER_SCENARIO,
+        ],
+        default=GLOBAL_PT_TREND_PER_SCENARIO,
         key=model.wkey("s1_chart_type"),
     )
     scenario_choice = st.selectbox(
@@ -90,7 +100,7 @@ def render_region_powertrain_section_all_scenarios(
 
     if scenario_choice != "All":
         view = compute_filtered_view(results, scenario_choice, regions, powertrains)
-        if chart_type == "By region":
+        if chart_type == PT_SCENARIO_TREND_PER_REGION:
             fig = by_region_chart(model, view.detail_rp)
         else:
             fig = global_powertrain_chart(model, view.rollup_pt, chart_type)
@@ -98,7 +108,7 @@ def render_region_powertrain_section_all_scenarios(
         st.plotly_chart(fig, use_container_width=True, key=model.wkey("s1_chart_one"))
         return
 
-    if chart_type == "By region":
+    if chart_type == PT_SCENARIO_TREND_PER_REGION:
         detail_all = pd.concat(
             [
                 compute_filtered_view(results, s, regions, powertrains).detail_rp.assign(scenario=s)
@@ -109,13 +119,16 @@ def render_region_powertrain_section_all_scenarios(
         fig = by_region_chart(model, detail_all, dash_col="scenario")
         st.plotly_chart(fig, use_container_width=True, key=model.wkey("s1_chart_all"))
     else:
-        for s, col in zip(SCENARIOS, st.columns(3)):
-            with col:
-                st.caption(s)
-                view = compute_filtered_view(results, s, regions, powertrains)
-                fig = global_powertrain_chart(model, view.rollup_pt, chart_type)
-                fig.update_layout(height=400)
-                st.plotly_chart(fig, use_container_width=True, key=model.wkey(f"s1_chart_{s}"))
+        rollup_all = pd.concat(
+            [
+                compute_filtered_view(results, s, regions, powertrains).rollup_pt.assign(scenario=s)
+                for s in SCENARIOS
+            ],
+            ignore_index=True,
+        )
+        fig = global_powertrain_chart(model, rollup_all, chart_type, facet_col="scenario")
+        fig.update_layout(height=600)
+        st.plotly_chart(fig, use_container_width=True, key=model.wkey("s1_chart_all_global"))
 
 
 def render_region_totals_section_all_scenarios(
@@ -142,7 +155,8 @@ def render_region_totals_section_all_scenarios(
         return
 
     chart_type = st.segmented_control(
-        "Chart type", ["Trend", "Split by region"], default="Trend",
+        "Chart type", [REGIONAL_TREND_PER_SCENARIO, REGIONAL_SPLIT_PER_SCENARIO],
+        default=REGIONAL_TREND_PER_SCENARIO,
         key=model.wkey("s2_chart_type"),
     )
     scenario_choice = st.selectbox(
@@ -159,20 +173,20 @@ def render_region_totals_section_all_scenarios(
         detail, combined = totals_for(scenario_choice)
         fig = (
             region_trend_chart(model, combined)
-            if chart_type == "Trend"
+            if chart_type == REGIONAL_TREND_PER_SCENARIO
             else region_split_chart(model, detail)
         )
         fig.update_layout(height=600)
         st.plotly_chart(fig, use_container_width=True, key=model.wkey("s2_chart_one"))
         return
 
-    for s, col in zip(SCENARIOS, st.columns(3)):
+    for s, col in zip(SCENARIO_CHART_ORDER, st.columns(3)):
         with col:
             st.caption(s)
             detail, combined = totals_for(s)
             fig = (
                 region_trend_chart(model, combined)
-                if chart_type == "Trend"
+                if chart_type == REGIONAL_TREND_PER_SCENARIO
                 else region_split_chart(model, detail)
             )
             fig.update_layout(height=400)

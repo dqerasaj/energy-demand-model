@@ -8,9 +8,10 @@ Deployed (no local file): downloads them from a private GitHub repo using a
 PAT stored in Streamlit secrets, and caches each to a temp file for the life of
 the running container.
 
-Three files are needed: the LDV and HDV sales extracts, and the CSV of default
-HDV scenario values (the LDV equivalent is hard-coded in scenario_config.py, so
-it has no file here).
+Five files are needed: the LDV and HDV sales extracts, the CSV of default HDV
+scenario values (the LDV equivalent is hard-coded in scenario_config.py, so it
+has no file here), and the Other Oil consumption extract with its own defaults
+schema.
 """
 
 import tempfile
@@ -25,6 +26,8 @@ CACHE_DIR = Path(tempfile.gettempdir()) / "energy-demand-model-data"
 LDV_CSV = "globaldata_ldv_sales.csv"
 HDV_CSV = "globaldata_hdv_sales.csv"
 HDV_SCHEMA_CSV = "hdv_default_schema.csv"
+OTHER_OIL_CSV = "weo_other_oil_consumption.csv"
+OTHER_OIL_SCHEMA_CSV = "other_oil_default_schema.csv"
 
 DATA_REPO = "dqerasaj/energy-demand-model-data"
 DATA_REPO_REF = "main"
@@ -55,6 +58,14 @@ def get_hdv_csv_path() -> str:
 
 def get_hdv_schema_path() -> str:
     return _resolve(HDV_SCHEMA_CSV)
+
+
+def get_other_oil_csv_path() -> str:
+    return _resolve(OTHER_OIL_CSV)
+
+
+def get_other_oil_schema_path() -> str:
+    return _resolve(OTHER_OIL_SCHEMA_CSV)
 
 
 def _download_from_private_repo(repo_path: str, dest: Path) -> None:

@@ -26,7 +26,7 @@ import ldv_forecast_model
 from data_loader import get_hdv_csv_path, get_ldv_csv_path
 from forecast_model import DataSpec
 from hdv_scenario_config import default_scenarios as hdv_default_scenarios
-from scenario_config import (
+from ldv_scenario_config import (
     BASE_POWERTRAIN_AND_REGION_SCENARIOS,
     BASE_REGION_SCENARIOS,
 )
