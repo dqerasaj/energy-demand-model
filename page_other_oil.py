@@ -16,6 +16,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from chart_marks import mark_forecast_start
 from forecast_model import ANCHOR_YEARS, BASE_CASE, SCENARIOS
 from other_oil_forecast_model import OtherOilResults, to_wide
 from other_oil_model_cache import get_other_oil_results, get_other_oil_scenarios
@@ -104,7 +105,7 @@ def _trend_chart(data, metric: str, facet_col: str | None = None):
     if facet_col:
         # px titles facets "scenario=Base Case"; only the value is wanted.
         fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-    return fig
+    return mark_forecast_start(fig)
 
 
 def _trend_by_sector_chart(data, metric: str):
@@ -146,7 +147,7 @@ def _trend_by_sector_chart(data, metric: str):
     if metric != OIL:
         fig.update_yaxes(matches=None, showticklabels=True)
     fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-    return fig
+    return mark_forecast_start(fig)
 
 
 def _split_chart(data, metric: str, facet_col: str | None = None):
@@ -177,7 +178,7 @@ def _split_chart(data, metric: str, facet_col: str | None = None):
     if facet_col:
         # px titles facets "scenario=Base Case"; only the value is wanted.
         fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-    return fig
+    return mark_forecast_start(fig, bars=True)
 
 
 def _chart_type_control(metric: str, show_all: bool) -> str:

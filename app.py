@@ -109,7 +109,7 @@ if __name__ == "__main__":
     sections = [_model_section(model) for model in VEHICLE_MODELS.values()]
     sections.append(
         NavSection(
-            label="Other Oil Consumption",
+            label="Other Oil Consumption Model",
             key="other_oil_model",
             pages=[
                 st.Page(

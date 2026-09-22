@@ -14,6 +14,8 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from chart_marks import mark_forecast_start
+
 from forecast_model import (
     ANCHOR_YEARS,
     BASE_CASE,
@@ -359,7 +361,23 @@ def by_region_chart(
     )
     fig.update_yaxes(matches=None, showticklabels=True)
     fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-    return fig
+    return mark_forecast_start(fig)
+
+
+def chart_type_control(options: list[str], key: str) -> str:
+    """The chart-type picker, defaulting to the first of `options`.
+
+    Each section's single-case and all-cases views share one key but offer
+    different chart types, so toggling "Show all scenario cases" leaves the
+    stored selection outside the new options. A keyed segmented_control keeps
+    its identity when its options change, so it would render with nothing
+    highlighted. Writing the default through session_state is what resets it
+    in the browser, and since that happens before every render the widget
+    takes no `default=` - it would be ignored, and Streamlit warns about it.
+    """
+    if st.session_state.get(key) not in options:
+        st.session_state[key] = options[0]
+    return st.segmented_control("Chart type", options, key=key)
 
 
 def global_powertrain_chart(
@@ -397,7 +415,7 @@ def global_powertrain_chart(
     if facet_col:
         # px titles facets "scenario=Base Case"; only the value is wanted.
         fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-    return fig
+    return mark_forecast_start(fig, bars=chart_type in _SPLIT_CHARTS)
 
 
 def region_trend_chart(model: VehicleModel, combined: pd.DataFrame):
@@ -411,7 +429,7 @@ def region_trend_chart(model: VehicleModel, combined: pd.DataFrame):
         labels={"sales": "Sales (million vehicles)", "year": "Year"},
     )
     fig.update_traces(selector={"name": GLOBAL_ROW}, line=dict(dash="dash", width=4))
-    return fig
+    return mark_forecast_start(fig)
 
 
 def region_split_chart(model: VehicleModel, detail_region: pd.DataFrame):
@@ -425,7 +443,7 @@ def region_split_chart(model: VehicleModel, detail_region: pd.DataFrame):
         labels={"sales": "Sales (million vehicles)", "year": "Year"},
     )
     fig.update_layout(barmode="stack")
-    return fig
+    return mark_forecast_start(fig, bars=True)
 
 
 OTHER_POWERTRAIN_NOTE = (
@@ -480,10 +498,8 @@ def render_region_powertrain_section(
     )
     chart_type = None
     if view_mode != "Table":
-        chart_type = st.segmented_control(
-            "Chart type",
+        chart_type = chart_type_control(
             [PT_TREND_PER_REGION, GLOBAL_PT_TREND, GLOBAL_PT_SPLIT],
-            default=PT_TREND_PER_REGION,
             key=model.wkey("s1_chart_type"),
         )
 
@@ -533,9 +549,8 @@ def render_region_totals_section(
         render_sales_table(order_sales_table(model, to_wide(combined)))
         return
 
-    chart_type = st.segmented_control(
-        "Chart type", [REGIONAL_TREND, REGIONAL_SPLIT], default=REGIONAL_TREND,
-        key=model.wkey("s2_chart_type"),
+    chart_type = chart_type_control(
+        [REGIONAL_TREND, REGIONAL_SPLIT], key=model.wkey("s2_chart_type")
     )
 
     if chart_type == REGIONAL_TREND:
@@ -620,4 +635,4 @@ def scenario_overlay_chart(
     )
     fig.update_yaxes(matches=None, showticklabels=True)
     fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-    return fig
+    return mark_forecast_start(fig)

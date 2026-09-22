@@ -23,6 +23,7 @@ from dashboard_helpers import (
     append_global_rollup,
     build_tech_tables,
     by_region_chart,
+    chart_type_control,
     compute_filtered_view,
     global_powertrain_chart,
     order_sales_table,
@@ -84,14 +85,12 @@ def render_region_powertrain_section_all_scenarios(
         )
         return
 
-    chart_type = st.segmented_control(
-        "Chart type",
+    chart_type = chart_type_control(
         [
-            GLOBAL_PT_TREND_PER_SCENARIO,
             PT_SCENARIO_TREND_PER_REGION,
+            GLOBAL_PT_TREND_PER_SCENARIO,
             GLOBAL_PT_SPLIT_PER_SCENARIO,
         ],
-        default=GLOBAL_PT_TREND_PER_SCENARIO,
         key=model.wkey("s1_chart_type"),
     )
     scenario_choice = st.selectbox(
@@ -154,9 +153,8 @@ def render_region_totals_section_all_scenarios(
         )
         return
 
-    chart_type = st.segmented_control(
-        "Chart type", [REGIONAL_TREND_PER_SCENARIO, REGIONAL_SPLIT_PER_SCENARIO],
-        default=REGIONAL_TREND_PER_SCENARIO,
+    chart_type = chart_type_control(
+        [REGIONAL_TREND_PER_SCENARIO, REGIONAL_SPLIT_PER_SCENARIO],
         key=model.wkey("s2_chart_type"),
     )
     scenario_choice = st.selectbox(

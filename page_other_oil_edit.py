@@ -26,6 +26,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from chart_marks import mark_forecast_start
 from data_loader import get_other_oil_csv_path
 from forecast_model import ANCHOR_YEARS, SCENARIOS
 from other_oil_forecast_model import OtherOilResults, to_wide
@@ -245,7 +246,7 @@ def _overlay_chart(saved: pd.DataFrame, updated: pd.DataFrame | None):
         if t.name.endswith(UPDATED_SUFFIX)
         else None
     )
-    return fig
+    return mark_forecast_start(fig)
 
 
 def _render_sector_charts(
