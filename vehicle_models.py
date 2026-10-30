@@ -65,10 +65,9 @@ class VehicleModel:
         """The sidebar section header."""
         return f"{self.label} Model"
 
-    @property
-    def title(self) -> str:
-        """The Forecasts page title."""
-        return f"{self.label} Sales Forecast"
+    def title(self, metric: str) -> str:
+        """The Forecasts page title, for "Sales" or "Fleet"."""
+        return f"{self.label} {metric} Forecast"
 
     @property
     def total_label(self) -> str:

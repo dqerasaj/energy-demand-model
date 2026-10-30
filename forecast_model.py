@@ -634,6 +634,56 @@ def run_model(
     )
 
 
+def _cumulative_sales(df: pd.DataFrame, key_cols: list[str]) -> pd.DataFrame:
+    """Running total of `sales` within each series, over every year in `df`.
+
+    Every series is extended to the last year first, so one the source stops
+    publishing (FHEV after 2032) holds its fleet flat rather than vanishing -
+    those vehicles are still on the road, and the powertrains keep reconciling
+    with the all-vehicle fleet.
+
+    Returns: *key_cols | scenario | year | sales | data_type | yoy_pct
+    """
+    keys = [*key_cols, "scenario"]
+    years = pd.DataFrame({"year": np.arange(df["year"].min(), df["year"].max() + 1)})
+    out = (
+        df[keys].drop_duplicates().merge(years, how="cross")
+        .merge(df[[*keys, "year", "sales"]], on=[*keys, "year"], how="left")
+        .sort_values([*keys, "year"], ignore_index=True)
+    )
+    out["sales"] = out["sales"].fillna(0.0).groupby([out[c] for c in keys]).cumsum()
+    out["data_type"] = np.where(out["year"] < FORECAST_START, "actual", "forecast")
+    return _add_yoy_pct(out, key_cols)
+
+
+def to_fleet(results: ForecastResults) -> ForecastResults:
+    """The same results with each year's sales replaced by the fleet: cumulative
+    sales from the first year in the source data up to and including that year.
+
+    There is no scrappage, and vehicles sold before the source data starts
+    aren't counted. The figures stay in the `sales` column, so every rollup,
+    table and chart built for sales works on a fleet unchanged. Penetration
+    becomes the share of the region's fleet.
+    """
+    region_fleet = _cumulative_sales(results.region_sales, ["region"])
+    fleet = _cumulative_sales(
+        results.region_and_powertrain_sales, ["region", "powertrain"]
+    )
+    region_all = region_fleet[["region", "scenario", "year", "sales"]].rename(
+        columns={"sales": "region_sales"}
+    )
+    fleet = fleet.merge(region_all, on=["region", "scenario", "year"], how="left")
+    fleet["penetration"] = fleet["sales"] / fleet["region_sales"]
+    fleet = fleet.drop(columns="region_sales")
+
+    return ForecastResults(
+        region_and_powertrain_sales=fleet,
+        region_sales=region_fleet,
+        powertrain_sales=aggregate_powertrain_sales(fleet),
+        total_sales=aggregate_total_sales(region_fleet),
+    )
+
+
 def to_wide(tidy: pd.DataFrame) -> pd.DataFrame:
     """Pivot a tidy result's sales to years-as-columns for inspection/export.
     Drops any non-sales metric columns (e.g. yoy_pct, penetration)."""

@@ -90,7 +90,7 @@ Nothing you edit affects the rest of the dashboard until you save.
 - **No input validation.** The editors accept any number. Penetration shares that add up to more than 100%, or extreme growth rates, will run and give implausible results rather than an error. See each model's limitations for what happens in those cases.
 - **Deterministic, single-path forecasts.** Each case produces one line, with no uncertainty range. The spread between Slower and Faster Transition is the only measure of uncertainty shown.
 - **The three models are independent.** No model's output feeds another: for example, vehicle sales don't feed into oil consumption, and there's no overall oil demand total.
-- **Vehicle models forecast sales, not fleets or fuel use.** The LDV and HDV models project new vehicles sold each year. They don't model the vehicle stock, how far vehicles travel, or how much fuel they use.
+- **Vehicle models forecast sales, with a simple fleet view and no fuel use.** The LDV and HDV models project new vehicles sold each year. The **Fleet** option on their Forecasts pages shows cumulative sales from the first year of source data (2020): it leaves out vehicles sold before then and assumes none are retired, so it isn't a full vehicle stock. The models don't cover how far vehicles travel or how much fuel they use.
 
 ## Updating the input data
 

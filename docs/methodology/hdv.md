@@ -78,4 +78,4 @@ These aren't forecast by this model. Their figures come **directly from GlobalDa
 - **Shares aren't capped.** Values above 100% can be entered; IC Only is then set to zero and the powertrains add up to more than the total.
 - **RoW is very broad.** It covers about half of heavy vehicle volume with a single set of assumptions.
 - **No segment detail.** Medium trucks, heavy trucks and buses electrify at very different speeds in practice, but the model applies one share to all of them.
-- **Sales, not fleet or fuel.** The model projects new vehicles per year, not the vehicle stock or its oil use.
+- **Fleet is cumulative sales only.** The model projects new vehicles per year. The Fleet option adds those up from 2020, with no pre-2020 vehicles and no retirements, and the hybrids hold flat after 2037. It doesn't model oil use.

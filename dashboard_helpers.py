@@ -61,6 +61,15 @@ REGIONAL_SPLIT_PER_SCENARIO = "Regional split per scenario"
 # form it is being asked for without re-deriving it from the label text.
 _SPLIT_CHARTS = {GLOBAL_PT_SPLIT, GLOBAL_PT_SPLIT_PER_SCENARIO}
 
+# What the Forecasts page's figures are. Fleet figures stay in the "sales" column
+# (see forecast_model.to_fleet), so only the wording follows this.
+SALES = "Sales"
+FLEET = "Fleet"
+
+
+def _value_labels(metric: str) -> dict[str, str]:
+    return {"sales": f"{metric} (million vehicles)", "year": "Year"}
+
 
 def build_editable_tech_tables(
     model: VehicleModel,
@@ -338,6 +347,7 @@ def render_sales_table(wide: pd.DataFrame) -> None:
 def by_region_chart(
     model: VehicleModel, detail_rp: pd.DataFrame, dash_col: str | None = None,
     powertrain_order: list[str] | None = None,
+    metric: str = SALES,
 ):
     """Facet-by-region, color-by-powertrain line chart. `dash_col` (e.g.
     "scenario") adds a 3rd dimension via line dash pattern - used only by
@@ -357,7 +367,7 @@ def by_region_chart(
         facet_col="region",
         facet_col_wrap=2,
         category_orders=category_orders,
-        labels={"sales": "Sales (million vehicles)", "year": "Year"},
+        labels=_value_labels(metric),
     )
     fig.update_yaxes(matches=None, showticklabels=True)
     fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
@@ -384,6 +394,7 @@ def global_powertrain_chart(
     model: VehicleModel, rollup_pt: pd.DataFrame, chart_type: str,
     powertrain_order: list[str] | None = None,
     facet_col: str | None = None,
+    metric: str = SALES,
 ):
     """Global powertrain trend/split - the rollup across every region shown.
 
@@ -408,7 +419,7 @@ def global_powertrain_chart(
             "powertrain": powertrain_order or model.powertrains,
             "scenario": SCENARIOS,
         },
-        labels={"sales": "Sales (million vehicles)", "year": "Year"},
+        labels=_value_labels(metric),
     )
     if chart_type in _SPLIT_CHARTS:
         fig.update_layout(barmode="stack")
@@ -418,7 +429,7 @@ def global_powertrain_chart(
     return mark_forecast_start(fig, bars=chart_type in _SPLIT_CHARTS)
 
 
-def region_trend_chart(model: VehicleModel, combined: pd.DataFrame):
+def region_trend_chart(model: VehicleModel, combined: pd.DataFrame, metric: str = SALES):
     """Region totals line chart (REGIONAL_TREND), region + Global rollup."""
     fig = px.line(
         combined,
@@ -426,13 +437,13 @@ def region_trend_chart(model: VehicleModel, combined: pd.DataFrame):
         y="sales",
         color="region",
         category_orders={"region": [*model.regions, GLOBAL_ROW]},
-        labels={"sales": "Sales (million vehicles)", "year": "Year"},
+        labels=_value_labels(metric),
     )
     fig.update_traces(selector={"name": GLOBAL_ROW}, line=dict(dash="dash", width=4))
     return mark_forecast_start(fig)
 
 
-def region_split_chart(model: VehicleModel, detail_region: pd.DataFrame):
+def region_split_chart(model: VehicleModel, detail_region: pd.DataFrame, metric: str = SALES):
     """Region totals stacked bar chart (REGIONAL_SPLIT), for one scenario."""
     fig = px.bar(
         detail_region,
@@ -440,7 +451,7 @@ def region_split_chart(model: VehicleModel, detail_region: pd.DataFrame):
         y="sales",
         color="region",
         category_orders={"region": model.regions},
-        labels={"sales": "Sales (million vehicles)", "year": "Year"},
+        labels=_value_labels(metric),
     )
     fig.update_layout(barmode="stack")
     return mark_forecast_start(fig, bars=True)
@@ -453,7 +464,15 @@ OTHER_POWERTRAIN_NOTE = (
 )
 
 
-def render_other_powertrain_toggle(model: VehicleModel, key_suffix: str = "") -> bool:
+FLEET_OTHER_POWERTRAIN_NOTE = (
+    "{names} are not forecast by this model. Their fleet builds from the source "
+    "data's own published projections, then holds flat once the source data stops."
+)
+
+
+def render_other_powertrain_toggle(
+    model: VehicleModel, key_suffix: str = "", metric: str = SALES
+) -> bool:
     """The opt-in for powertrains this model doesn't forecast. Off by default -
     supplementary context rather than part of the forecast."""
     if not model.other_powertrains:
@@ -465,7 +484,8 @@ def render_other_powertrain_toggle(model: VehicleModel, key_suffix: str = "") ->
         key=model.wkey(f"show_other_powertrains{key_suffix}"),
     )
     if shown:
-        st.caption(OTHER_POWERTRAIN_NOTE.format(names=names))
+        note = FLEET_OTHER_POWERTRAIN_NOTE if metric == FLEET else OTHER_POWERTRAIN_NOTE
+        st.caption(note.format(names=names))
     return shown
 
 
@@ -489,6 +509,7 @@ def render_region_powertrain_section(
     scenario: str,
     regions: list[str],
     powertrains: list[str],
+    metric: str = SALES,
 ) -> None:
     """Sales split by region and powertrain. Owns its own view controls and the
     opt-in for the non-forecast powertrains, so the filters above it only ever
@@ -504,7 +525,7 @@ def render_region_powertrain_section(
         )
 
     # Below the view and chart-type controls, per the page layout.
-    show_other = render_other_powertrain_toggle(model)
+    show_other = render_other_powertrain_toggle(model, metric=metric)
 
     shown = list(powertrains)
     if show_other:
@@ -517,9 +538,11 @@ def render_region_powertrain_section(
         return
 
     if chart_type == PT_TREND_PER_REGION:
-        fig = by_region_chart(model, view.detail_rp, powertrain_order=shown)
+        fig = by_region_chart(model, view.detail_rp, powertrain_order=shown, metric=metric)
     else:
-        fig = global_powertrain_chart(model, view.rollup_pt, chart_type, powertrain_order=shown)
+        fig = global_powertrain_chart(
+            model, view.rollup_pt, chart_type, powertrain_order=shown, metric=metric
+        )
         fig.update_layout(height=600)
 
     st.plotly_chart(fig, use_container_width=True, key=model.wkey("s1_chart"))
@@ -531,6 +554,7 @@ def render_region_totals_section(
     scenario: str,
     regions: list[str],
     powertrains: list[str],
+    metric: str = SALES,
 ) -> None:
     """All-vehicle sales by region. The powertrain filter decides which
     powertrains make up the total; with every one selected - the default - it
@@ -554,9 +578,9 @@ def render_region_totals_section(
     )
 
     if chart_type == REGIONAL_TREND:
-        fig = region_trend_chart(model, combined)
+        fig = region_trend_chart(model, combined, metric)
     else:
-        fig = region_split_chart(model, detail_region)
+        fig = region_split_chart(model, detail_region, metric)
     fig.update_layout(height=600)
 
     st.plotly_chart(fig, use_container_width=True, key=model.wkey("s2_chart"))

@@ -12,6 +12,8 @@ import pandas as pd
 import streamlit as st
 
 from dashboard_helpers import (
+    FLEET,
+    SALES,
     GLOBAL_PT_SPLIT_PER_SCENARIO,
     GLOBAL_PT_TREND_PER_SCENARIO,
     PT_SCENARIO_TREND_PER_REGION,
@@ -34,7 +36,7 @@ from dashboard_helpers import (
     render_region_totals_section,
     render_sales_table,
 )
-from forecast_model import ForecastResults, aggregate_total_sales, to_wide
+from forecast_model import ForecastResults, aggregate_total_sales, to_fleet, to_wide
 from model_cache import get_active_results, get_active_scenario_dicts
 from scenario_store import get_main_scenario_name, scenario_names, set_main_scenario
 from vehicle_models import VehicleModel
@@ -65,7 +67,8 @@ def render_main_scenario_picker(model: VehicleModel) -> None:
 
 
 def render_region_powertrain_section_all_scenarios(
-    model: VehicleModel, results: ForecastResults, regions: list[str], powertrains: list[str]
+    model: VehicleModel, results: ForecastResults, regions: list[str], powertrains: list[str],
+    metric: str = SALES,
 ) -> None:
     """Same content as render_region_powertrain_section, but showing all 3
     scenario cases at once - used while "Show all scenario cases" is ticked."""
@@ -100,9 +103,9 @@ def render_region_powertrain_section_all_scenarios(
     if scenario_choice != "All":
         view = compute_filtered_view(results, scenario_choice, regions, powertrains)
         if chart_type == PT_SCENARIO_TREND_PER_REGION:
-            fig = by_region_chart(model, view.detail_rp)
+            fig = by_region_chart(model, view.detail_rp, metric=metric)
         else:
-            fig = global_powertrain_chart(model, view.rollup_pt, chart_type)
+            fig = global_powertrain_chart(model, view.rollup_pt, chart_type, metric=metric)
             fig.update_layout(height=600)
         st.plotly_chart(fig, use_container_width=True, key=model.wkey("s1_chart_one"))
         return
@@ -115,7 +118,7 @@ def render_region_powertrain_section_all_scenarios(
             ],
             ignore_index=True,
         )
-        fig = by_region_chart(model, detail_all, dash_col="scenario")
+        fig = by_region_chart(model, detail_all, dash_col="scenario", metric=metric)
         st.plotly_chart(fig, use_container_width=True, key=model.wkey("s1_chart_all"))
     else:
         rollup_all = pd.concat(
@@ -125,13 +128,16 @@ def render_region_powertrain_section_all_scenarios(
             ],
             ignore_index=True,
         )
-        fig = global_powertrain_chart(model, rollup_all, chart_type, facet_col="scenario")
+        fig = global_powertrain_chart(
+            model, rollup_all, chart_type, facet_col="scenario", metric=metric
+        )
         fig.update_layout(height=600)
         st.plotly_chart(fig, use_container_width=True, key=model.wkey("s1_chart_all_global"))
 
 
 def render_region_totals_section_all_scenarios(
-    model: VehicleModel, results: ForecastResults, regions: list[str], powertrains: list[str]
+    model: VehicleModel, results: ForecastResults, regions: list[str], powertrains: list[str],
+    metric: str = SALES,
 ) -> None:
     """Same content as render_region_totals_section, but showing all 3
     scenario cases at once - used while "Show all scenario cases" is ticked."""
@@ -170,9 +176,9 @@ def render_region_totals_section_all_scenarios(
     if scenario_choice != "All":
         detail, combined = totals_for(scenario_choice)
         fig = (
-            region_trend_chart(model, combined)
+            region_trend_chart(model, combined, metric)
             if chart_type == REGIONAL_TREND_PER_SCENARIO
-            else region_split_chart(model, detail)
+            else region_split_chart(model, detail, metric)
         )
         fig.update_layout(height=600)
         st.plotly_chart(fig, use_container_width=True, key=model.wkey("s2_chart_one"))
@@ -183,9 +189,9 @@ def render_region_totals_section_all_scenarios(
             st.caption(s)
             detail, combined = totals_for(s)
             fig = (
-                region_trend_chart(model, combined)
+                region_trend_chart(model, combined, metric)
                 if chart_type == REGIONAL_TREND_PER_SCENARIO
-                else region_split_chart(model, detail)
+                else region_split_chart(model, detail, metric)
             )
             fig.update_layout(height=400)
             st.plotly_chart(fig, use_container_width=True, key=model.wkey(f"s2_chart_{s}"))
@@ -193,9 +199,12 @@ def render_region_totals_section_all_scenarios(
 
 def render(model: VehicleModel) -> None:
     rp_scenarios, r_scenarios = get_active_scenario_dicts(model)
-    results = get_active_results(model)
+    sales_results = get_active_results(model)
 
-    st.title(model.title)
+    # Read from session_state ahead of the radio below, so the title above it
+    # reacts to the same run's choice.
+    metric_key = model.wkey("metric")
+    st.title(model.title(st.session_state.get(metric_key, SALES)))
 
     render_main_scenario_picker(model)
 
@@ -222,17 +231,30 @@ def render(model: VehicleModel) -> None:
 
     show_all_scenarios = st.checkbox("Show all scenario cases", key=show_all_key)
 
+    metric = st.radio("Show", [SALES, FLEET], horizontal=True, key=metric_key)
+    results = to_fleet(sales_results) if metric == FLEET else sales_results
+    if metric == FLEET:
+        first_year = sales_results.region_sales["year"].min()
+        st.caption(
+            f"Fleet is cumulative sales from {first_year}, the first year in the "
+            f"source data. Vehicles sold before {first_year} aren't counted, and "
+            "no vehicles are retired. The scenario configuration still shows the "
+            "sales assumptions the fleet is built from."
+        )
+
     # The scenario configuration is shown here for reference only, always at
     # full scope - it deliberately ignores the per-section filters below, since
     # a scenario's anchor values are a property of the scenario rather than of
     # whatever the viewer is currently looking at. Edit Scenario Configs is
-    # where they're explored properly.
+    # where they're explored properly. It stays on sales in the fleet view too:
+    # its anchor values are sales assumptions, and the Global rows beneath them
+    # have to mean the same thing.
     with st.expander("Scenario configuration"):
         if show_all_scenarios:
             tables_by_scenario = {
                 s: build_tech_tables(
                     model, s,
-                    compute_filtered_view(results, s, model.regions, model.powertrains),
+                    compute_filtered_view(sales_results, s, model.regions, model.powertrains),
                     rp_scenarios, r_scenarios, model.regions,
                 )
                 for s in SCENARIOS
@@ -245,7 +267,7 @@ def render(model: VehicleModel) -> None:
                         st.dataframe(tables_by_scenario[s][tech], hide_index=True)
         else:
             config_view = compute_filtered_view(
-                results, scenario, model.regions, model.powertrains
+                sales_results, scenario, model.regions, model.powertrains
             )
             tables = build_tech_tables(
                 model, scenario, config_view, rp_scenarios, r_scenarios, model.regions
@@ -255,19 +277,19 @@ def render(model: VehicleModel) -> None:
                 st.dataframe(df, hide_index=True)
 
     st.divider()
-    st.subheader("Sales by region & powertrain")
+    st.subheader(f"{metric} by region & powertrain")
     s1_regions, s1_powertrains = render_filters(model, key_suffix="_s1")
     if show_all_scenarios:
         render_region_powertrain_section_all_scenarios(
-            model, results, s1_regions, s1_powertrains
+            model, results, s1_regions, s1_powertrains, metric
         )
     else:
         render_region_powertrain_section(
-            model, results, scenario, s1_regions, s1_powertrains
+            model, results, scenario, s1_regions, s1_powertrains, metric
         )
 
     st.divider()
-    st.subheader(f"Sales by region (all {model.label})")
+    st.subheader(f"{metric} by region (all {model.label})")
     # Every powertrain is an option here, the non-forecast ones included, since
     # they are part of the all-vehicle total. All selected by default.
     totals_powertrains = [*model.powertrains, *model.other_powertrain_labels]
@@ -276,9 +298,9 @@ def render(model: VehicleModel) -> None:
     )
     if show_all_scenarios:
         render_region_totals_section_all_scenarios(
-            model, results, s2_regions, s2_powertrains
+            model, results, s2_regions, s2_powertrains, metric
         )
     else:
         render_region_totals_section(
-            model, results, scenario, s2_regions, s2_powertrains
+            model, results, scenario, s2_regions, s2_powertrains, metric
         )
