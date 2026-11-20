@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How To Run It</title>
+<link rel="stylesheet" href="deck.css">
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<main class="deck" id="deck">
+
+<section class="slide" data-title="How to run it">
+  <p class="kicker">Energy Demand Model · deck 2 of 3</p>
+  <h1>How to run it</h1>
+  <p class="lead">What you need, running the dashboard on your own computer, and putting it online on Streamlit
+    Community Cloud.</p>
+  <div class="grid g3" style="margin-top:32px">
+    <div class="card"><h3>1 · What it is for</h3><p class="small"><a href="purpose.html">purpose.html</a></p></div>
+    <div class="card"><h3>2 · How to run it</h3><p class="small muted">this deck</p></div>
+    <div class="card"><h3>3 · How to use it</h3><p class="small"><a href="using.html">using.html</a></p></div>
+  </div>
+  <p class="small muted" style="margin-top:28px">Use ← → or Space to move · Home / End · T switches light/dark</p>
+</section>
+
+<section class="slide" data-title="What you need">
+  <p class="kicker">1 · What you need</p>
+  <h2>Four things before the first run</h2>
+  <div class="grid g2">
+    <ol class="steps">
+      <li><b>Python 3.11</b> and the code from the repository.</li>
+      <li><b>The five input files</b>, or a GitHub token that can read the private data repository they live in.</li>
+      <li><b>A secrets file</b>, <code>.streamlit/secrets.toml</code>, with the dashboard's login.</li>
+      <li><b>The packages</b> in <code>requirements.txt</code>.</li>
+    </ol>
+    <div class="card">
+      <h3>Pinned packages</h3>
+      <table>
+        <tr><td>streamlit</td><td class="mono">1.55.0</td></tr>
+        <tr><td>pandas</td><td class="mono">2.3.3</td></tr>
+        <tr><td>numpy</td><td class="mono">2.3.5</td></tr>
+        <tr><td>requests</td><td class="mono">2.32.5</td></tr>
+        <tr><td>plotly</td><td class="mono">6.9.0</td></tr>
+      </table>
+      <p class="small muted" style="margin:10px 0 0">Keep Streamlit at 1.55.0 unless you test the sidebar: <code>nav.py</code> relies on Streamlit internals.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Input data">
+  <p class="kicker">2 · The input data</p>
+  <h2>Five files, never stored in the code repository</h2>
+  <table>
+    <tr><th>File</th><th>What it holds</th><th>Used by</th></tr>
+    <tr><td class="mono">globaldata_ldv_sales.csv</td><td>GlobalData light vehicle extract</td><td>LDV actuals</td></tr>
+    <tr><td class="mono">globaldata_hdv_sales.csv</td><td>GlobalData medium and heavy commercial vehicle extract</td><td>HDV actuals</td></tr>
+    <tr><td class="mono">hdv_default_schema.csv</td><td>HDV Default Scenario assumptions</td><td>HDV defaults</td></tr>
+    <tr><td class="mono">weo_other_oil_consumption.csv</td><td>World Energy Outlook extract</td><td>Other Oil actuals</td></tr>
+    <tr><td class="mono">other_oil_default_schema.csv</td><td>Other Oil Default Scenario assumptions</td><td>Other Oil defaults</td></tr>
+  </table>
+  <div class="flow" style="margin-top:18px">
+    <div class="card good"><h3>1. In <code>input_data/</code>?</h3><p class="small" style="margin:0">The app uses the local file. This is how you run it on your computer.</p></div>
+    <div class="arrow">→</div>
+    <div class="card"><h3>2. If not, download</h3><p class="small" style="margin:0">From the private repository named by <code>DATA_REPO</code> in <code>data_loader.py</code>, with the token in the secrets.</p></div>
+    <div class="arrow">→</div>
+    <div class="card"><h3>3. Cached</h3><p class="small" style="margin:0">Kept in a temporary folder while the app runs.</p></div>
+  </div>
+  <p class="small muted" style="margin-top:12px">The LDV default assumptions have no file: they are in <code>ldv_scenario_config.py</code>.</p>
+</section>
+
+<section class="slide" data-title="Secrets">
+  <p class="kicker">3 · The secrets file</p>
+  <h2>The login, and the token if you download the data</h2>
+  <div class="grid g2">
+    <div>
+      <p>Copy <code>.streamlit/secrets.toml.example</code> to <code>.streamlit/secrets.toml</code> and fill it in:</p>
+      <div class="formula pre">[auth]
+username = "choose-a-username"
+password = "choose-a-password"
+
+[github]
+data_repo_pat = "github_pat_..."</div>
+    </div>
+    <div>
+      <ul class="clean">
+        <li><b>[auth]</b> is the one login everyone uses to open the dashboard. You choose it.</li>
+        <li><b>[github]</b> is needed only when a file is missing from <code>input_data/</code>: a fine-grained GitHub token with read access to the data repository only.</li>
+        <li>The file is ignored by git. Never commit it.</li>
+        <li>Online, the same keys go in the app's <b>Settings → Secrets</b> on Streamlit Community Cloud.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Run locally">
+  <p class="kicker">4 · Run it on your computer</p>
+  <h2>Three commands</h2>
+  <div class="grid g2">
+    <div>
+      <div class="formula pre">pip install -r requirements.txt
+cp .streamlit/secrets.toml.example .streamlit/secrets.toml
+streamlit run app.py</div>
+      <ol class="steps">
+        <li>Put the five files in <code>input_data/</code> (the folder is ignored by git).</li>
+        <li>Fill in the secrets file.</li>
+        <li>Run the commands; the dashboard opens at <code>http://localhost:8501</code>.</li>
+        <li>Sign in with the username and password from your secrets file.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>Other ways</h3>
+      <p class="small"><b>Dev container / Codespaces.</b> <code>.devcontainer/</code> sets up Python 3.11, installs the packages and starts the app on port 8501.</p>
+      <p class="small" style="margin:0"><b>One model on its own.</b> Each model runs from the command line and prints its results. Give the file path:</p>
+      <div class="formula pre" style="font-size:.8rem">python ldv_forecast_model.py input_data/globaldata_ldv_sales.csv
+python hdv_forecast_model.py input_data/globaldata_hdv_sales.csv
+python other_oil_forecast_model.py</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Put it online">
+  <p class="kicker">5 · Put it online</p>
+  <h2>Streamlit Community Cloud</h2>
+  <div class="grid g2">
+    <ol class="steps">
+      <li>Keep the five files in a <b>private</b> GitHub repository, and set <code>DATA_REPO</code> in <code>data_loader.py</code> to its name.</li>
+      <li>Create a fine-grained token with read-only access to that repository. Note its expiry date.</li>
+      <li>On share.streamlit.io, create an app from the code repository: branch <code>main</code>, file <code>app.py</code>.</li>
+      <li>In the app's <b>Settings → Secrets</b>, paste <code>[auth]</code> and <code>[github] data_repo_pat</code>.</li>
+      <li>Deploy, then check: the login blocks strangers, the data downloads, and the numbers match a local run.</li>
+    </ol>
+    <div>
+      <div class="card warn"><h3>If the code repository is private</h3>
+        <ul class="clean small">
+          <li>The app is private by default: only people you invite can open it, on top of the login. You can make it public in its sharing settings.</li>
+          <li>Community Cloud allows one private app at a time.</li>
+          <li>You need admin rights on the repository to deploy from it.</li>
+        </ul>
+      </div>
+      <div class="card bad" style="margin-top:12px"><p class="small" style="margin:0"><b>The app follows <code>main</code>.</b> A redeploy or restart wipes the scenarios users have saved online.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Updating the data">
+  <p class="kicker">6 · Updating the data</p>
+  <h2>Same file name, same columns, then restart</h2>
+  <ul class="clean">
+    <li>Replace the file in the data repository (or in <code>input_data/</code>) with a newer extract that keeps the <b>same file name and column layout</b>.</li>
+    <li>Restart the app so it downloads the new files.</li>
+    <li>Newer years move the forecast start only if <code>FORECAST_START</code> in <code>forecast_model.py</code> (now 2025) is changed too. Until then, extra years are treated as the source's own forecast and ignored.</li>
+    <li>Columns the code reads: <code>REGION</code> and <code>HYBRID &amp; EV TYPE</code> (LDV), <code>COUNTRY</code> and <code>POWERTRAIN TYPE</code> (HDV), plus one column per year.</li>
+    <li>Editing a schema file changes that model's Default Scenario.</li>
+  </ul>
+</section>
+
+<section class="slide" data-title="Troubleshooting">
+  <p class="kicker">7 · When something goes wrong</p>
+  <h2>Common problems</h2>
+  <table>
+    <tr><th>What you see</th><th>Why</th><th>What to do</th></tr>
+    <tr><td>An error when you press <b>Log in</b></td><td>No <code>.streamlit/secrets.toml</code>, or no <code>[auth]</code> section</td><td>Create the secrets file (slide 4)</td></tr>
+    <tr><td>"Couldn't download … GitHub returned <b>401</b>"</td><td>Token missing, malformed or expired</td><td>Make a new token; update <code>data_repo_pat</code></td></tr>
+    <tr><td>"… returned <b>403</b>"</td><td>Token can't access the repository, or rate limit reached</td><td>Check the token's repository access</td></tr>
+    <tr><td>"… returned <b>404</b>"</td><td>File not on <code>main</code> of <code>DATA_REPO</code>, or the token can't see the repository</td><td>Check the file name and <code>DATA_REPO</code></td></tr>
+    <tr><td>Saved scenarios are gone online</td><td>The app restarted or redeployed; its storage is temporary</td><td>Record important scenarios elsewhere</td></tr>
+  </table>
+  <div class="card bad" style="margin-top:16px"><p class="small" style="margin:0"><b>Never commit</b> <code>input_data/</code> or <code>.streamlit/secrets.toml</code>: the data is licensed. Both are in <code>.gitignore</code>; check <code>git status</code> before every push.</p></div>
+</section>
+
+</main>
+<nav class="nav" aria-label="Slides">
+  <button id="prev" aria-label="Previous slide">←</button>
+  <span class="count" id="count"></span>
+  <button id="next" aria-label="Next slide">→</button>
+  <span class="title" id="title"></span>
+  <button id="theme" aria-label="Switch light or dark">◐</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>

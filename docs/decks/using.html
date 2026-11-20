@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How To Use It</title>
+<link rel="stylesheet" href="deck.css">
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<main class="deck" id="deck">
+
+<section class="slide" data-title="How to use it">
+  <p class="kicker">Energy Demand Model · deck 3 of 3</p>
+  <h1>How to use it</h1>
+  <p class="lead">Finding your way around the dashboard, reading the forecasts, and editing and saving scenarios.</p>
+  <div class="grid g3" style="margin-top:32px">
+    <div class="card"><h3>1 · What it is for</h3><p class="small"><a href="purpose.html">purpose.html</a></p></div>
+    <div class="card"><h3>2 · How to run it</h3><p class="small"><a href="running.html">running.html</a></p></div>
+    <div class="card"><h3>3 · How to use it</h3><p class="small muted">this deck</p></div>
+  </div>
+  <p class="small muted" style="margin-top:28px">Use ← → or Space to move · Home / End · T switches light/dark</p>
+</section>
+
+<section class="slide" data-title="Finding your way">
+  <p class="kicker">1 · Finding your way</p>
+  <h2>One sidebar section per model, the same pages in each</h2>
+  <div class="grid g2">
+    <div class="card navlist">
+      <div class="sec" style="margin-top:0">Model Dashboard Overview</div>
+      <div class="pg">tabs: Overview &amp; how to use · LDV Model · HDV Model · Other Oil Consumption Model</div>
+      <div class="sec">LDV Model</div>
+      <div class="pg">Forecasts</div><div class="pg">Edit Scenario Configs</div><div class="pg">Saved Scenarios ▸ one page per scenario</div>
+      <div class="sec">HDV Model</div>
+      <div class="pg">Forecasts · Edit Scenario Configs · Saved Scenarios</div>
+      <div class="sec">Other Oil Consumption Model</div>
+      <div class="pg">Forecasts · Edit Scenario Configs · Saved Scenarios</div>
+    </div>
+    <ul class="clean">
+      <li><b>Model Dashboard Overview</b> opens first. Its tabs explain each model's data, calculation and limits: read <b>Overview &amp; how to use</b> once.</li>
+      <li><b>Forecasts</b>: the results for the main scenario.</li>
+      <li><b>Edit Scenario Configs</b>: change the assumptions and save them.</li>
+      <li><b>Saved Scenarios</b>: look at a saved scenario, rename it, or make it the main one.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="slide" data-title="Words to know">
+  <p class="kicker">2 · Words to know</p>
+  <h2>Scenario, case, main scenario, anchor years</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Scenario case</h3><p class="small" style="margin:0">One of three pathways, always in this order: <b>Slower Transition · Base Case · Faster Transition</b>.</p></div>
+    <div class="card"><h3>Scenario</h3><p class="small" style="margin:0">A named set of assumptions for all three cases. The <b>Default Scenario</b> is the permanent baseline and can't be overwritten.</p></div>
+    <div class="card"><h3>Main scenario</h3><p class="small" style="margin:0">The scenario a model's Forecasts page shows. There is one per model, <b>shared by everyone</b>.</p></div>
+    <div class="card"><h3>Anchor years</h3><p class="small" style="margin:0">Assumptions are set for 2025, 2030, 2035, 2040 and 2050. Growth rates hold until the next anchor; shares ramp in a straight line.</p></div>
+  </div>
+  <div class="card warn" style="margin-top:16px"><p class="small" style="margin:0">Every assumption is a <b>percentage</b>: type <code>5</code> for 5%. The editors accept any number, so check that shares add up to no more than 100%.</p></div>
+</section>
+
+<section class="slide" data-title="Forecasts page">
+  <p class="kicker">3 · The Forecasts page</p>
+  <h2>Choose what to look at, top to bottom</h2>
+  <div class="grid g2">
+    <ol class="steps">
+      <li><b>Scenario</b>: which saved scenario drives the page. This changes the main scenario for everyone.</li>
+      <li><b>Scenario case</b>: one case, or tick <b>Show all scenario cases</b> to see the three side by side.</li>
+      <li><b>Show: Sales / Fleet</b> (vehicle models): new sales each year, or cumulative sales since 2020.</li>
+      <li><b>Scenario configuration</b>: open it to see the assumptions behind what you are looking at.</li>
+    </ol>
+    <div class="card">
+      <h3>Then two sections of results</h3>
+      <ul class="clean small">
+        <li><b>Sales by region &amp; powertrain</b>: BEV, PHEV and IC Only, with region and powertrain filters.</li>
+        <li><b>Sales by region (all LDV / HDV)</b>: the whole market per region, including the hybrids the model does not forecast.</li>
+        <li>Each section: <b>View</b> Chart or Table, and a <b>Chart type</b>.</li>
+        <li>Tick <b>Include … (not forecast by this model)</b> to show FHEV (LDV) or ICE and H2 hybrids (HDV), as GlobalData publishes them.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Chart types">
+  <p class="kicker">4 · Chart types</p>
+  <h2>The choices change when you show all cases</h2>
+  <table>
+    <tr><th>Section</th><th>One scenario case</th><th>All scenario cases</th></tr>
+    <tr><td><b>By region &amp; powertrain</b></td><td>Powertrain trend per region · Global powertrain trend · Global powertrain split</td><td>Powertrain and scenario trend per region · Global powertrain trend per scenario · Global powertrain split per scenario</td></tr>
+    <tr><td><b>By region (all vehicles)</b></td><td>Regional trend · Regional split</td><td>Regional trend per scenario · Regional split per scenario</td></tr>
+    <tr><td><b>Other Oil, oil consumption</b></td><td>Sector trend · Sector split</td><td>Scenario trend per sector · Sector trend per scenario · Sector split per scenario</td></tr>
+    <tr><td><b>Other Oil, activity</b></td><td>Sector trend</td><td>Scenario trend per sector · Sector trend per scenario</td></tr>
+  </table>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><p class="small" style="margin:0"><b>Trend</b> = lines over time. <b>Split</b> = stacked bars showing how the total divides. A grey dashed line marks where actuals end (2024).</p></div>
+    <div class="card"><p class="small" style="margin:0"><b>Global</b> is the sum of the regions and powertrains <b>selected in the filters</b>, not a fixed world total.</p></div>
+  </div>
+</section>
+
+<section class="slide" data-title="Editing">
+  <p class="kicker">5 · Edit Scenario Configs</p>
+  <h2>Edit, compare, then save</h2>
+  <div class="grid g2">
+    <ol class="steps">
+      <li><b>Choose the scenario</b> to start from.</li>
+      <li><b>Edit the anchor-year values.</b> One table per scenario case, side by side.</li>
+      <li><b>Open "View …"</b> under a table: the edited forecast is dashed ("– Updated"), the saved one solid.</li>
+      <li><b>Save</b> with one of the three buttons at the bottom.</li>
+    </ol>
+    <div>
+      <table>
+        <tr><th>Button</th><th>What it does</th></tr>
+        <tr><td><b>Save new scenario to dashboard</b></td><td>Saves the edits under a new name and makes it the main scenario</td></tr>
+        <tr><td><b>Save updates to scenario</b></td><td>Overwrites the scenario you are editing (not allowed for the Default Scenario)</td></tr>
+        <tr><td><b>Revert unsaved changes</b></td><td>Throws the edits away</td></tr>
+      </table>
+      <p class="small muted" style="margin-top:10px">Nothing changes elsewhere in the dashboard until you save.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Saved scenarios">
+  <p class="kicker">6 · Saved Scenarios</p>
+  <h2>One page per scenario</h2>
+  <div class="grid g2">
+    <ul class="clean">
+      <li>Shows the scenario's assumptions for all three cases.</li>
+      <li><b>Set as main … scenario</b> makes every page of that model use it.</li>
+      <li><b>Rename scenario</b> changes its name in the sidebar.</li>
+    </ul>
+    <div class="card bad">
+      <h3>Saved scenarios are fragile online</h3>
+      <p class="small">Everyone shares them, and the online app keeps them in temporary storage: a restart or redeploy wipes everything except the Default Scenario.</p>
+      <p class="small" style="margin:0">Keep a record of any scenario that matters: a screenshot or a download of its configuration tables.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Other Oil">
+  <p class="kicker">7 · The Other Oil model</p>
+  <h2>Same pages, sectors instead of regions</h2>
+  <div class="grid g2">
+    <ul class="clean">
+      <li>Filters choose <b>sectors</b>: Petrochemicals, Shipping, Aviation, Buildings/Power/Other.</li>
+      <li>Two sections: <b>Oil consumption (mb/d)</b> and <b>Activity</b> (billion tonne-km for shipping, billion passenger-km for aviation).</li>
+      <li>Activity is never stacked: tonne-km and passenger-km can't be added.</li>
+      <li>Charts start in 2022, the first year every series exists.</li>
+    </ul>
+    <div class="card">
+      <h3>The levers you edit</h3>
+      <table>
+        <tr><td><b>YoY</b></td><td>growth per year, stepped and compounded</td></tr>
+        <tr><td><b>PA</b></td><td>efficiency change per year; negative = less oil per unit</td></tr>
+        <tr><td><b>Penetration</b></td><td>share served by other fuels or electric, in a straight line</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="Good habits">
+  <p class="kicker">8 · Good habits</p>
+  <h2>Before you share a result</h2>
+  <ul class="clean">
+    <li>Say which <b>scenario</b> and which <b>case</b> a chart shows; the page title and selectors tell you.</li>
+    <li>Check the filters: a "Global" line covers only what is selected.</li>
+    <li>Changing the main scenario changes it for everyone: tell the team.</li>
+    <li>Use the Table view and its download for exact numbers.</li>
+    <li>Remember the limits: projections, not predictions; "sales" are production; Fleet is not the vehicle stock.</li>
+  </ul>
+</section>
+
+</main>
+<nav class="nav" aria-label="Slides">
+  <button id="prev" aria-label="Previous slide">←</button>
+  <span class="count" id="count"></span>
+  <button id="next" aria-label="Next slide">→</button>
+  <span class="title" id="title"></span>
+  <button id="theme" aria-label="Switch light or dark">◐</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>

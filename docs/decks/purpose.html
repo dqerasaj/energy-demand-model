@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What It Is For</title>
+<link rel="stylesheet" href="deck.css">
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<main class="deck" id="deck">
+
+<section class="slide" data-title="What it is for">
+  <p class="kicker">Energy Demand Model · deck 1 of 3</p>
+  <h1>What it is for</h1>
+  <p class="lead">A dashboard for exploring how oil demand from vehicles and from non-road sectors could change out to
+    2050, depending on how fast the energy transition happens.</p>
+  <div class="grid g3" style="margin-top:32px">
+    <div class="card"><h3>1 · What it is for</h3><p class="small muted">this deck</p></div>
+    <div class="card"><h3>2 · How to run it</h3><p class="small"><a href="running.html">running.html</a></p></div>
+    <div class="card"><h3>3 · How to use it</h3><p class="small"><a href="using.html">using.html</a></p></div>
+  </div>
+  <p class="small muted" style="margin-top:28px">Use ← → or Space to move · Home / End · T switches light/dark</p>
+</section>
+
+<section class="slide" data-title="The questions">
+  <p class="kicker">1 · The questions it answers</p>
+  <h2>If the transition is slower or faster, what happens to demand?</h2>
+  <div class="grid g3">
+    <div class="card accent"><h3>Light duty vehicles</h3><p class="small">How fast do battery electric and plug-in hybrid cars take over new sales in each region, and how many combustion-engine cars are still sold each year?</p></div>
+    <div class="card accent"><h3>Heavy duty vehicles</h3><p class="small">How fast do electric trucks and buses take over new sales in China, the USA and the rest of the world, and what is left for combustion engines?</p></div>
+    <div class="card accent"><h3>Oil outside road transport</h3><p class="small">How does oil use in petrochemicals, shipping, aviation and buildings/power change as activity grows, efficiency improves, and other fuels take a share?</p></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <p class="small" style="margin:0">Each answer comes in three <b>scenario cases</b>: <b>Slower Transition</b>, <b>Base Case</b> and <b>Faster Transition</b>. The gap between them shows how much the outcome depends on the speed of change.</p>
+  </div>
+</section>
+
+<section class="slide" data-title="Three models">
+  <p class="kicker">2 · Three models</p>
+  <h2>Two vehicle models and one oil model</h2>
+  <table>
+    <tr><th>Model</th><th>Forecasts</th><th>Split by</th><th>Unit</th><th>Actuals from</th></tr>
+    <tr><td><b>LDV</b></td><td>New sales of cars and light commercial vehicles (up to 6 t)</td><td>North America, Europe, APAC, RoW · BEV, PHEV, IC Only</td><td>million vehicles / year</td><td>GlobalData</td></tr>
+    <tr><td><b>HDV</b></td><td>New sales of trucks, buses and coaches (over 6 t)</td><td>China, USA, RoW · BEV, IC Only</td><td>million vehicles / year</td><td>GlobalData</td></tr>
+    <tr><td><b>Other Oil</b></td><td>Oil consumption outside road transport</td><td>Petrochemicals, Shipping, Aviation, Buildings/Power/Other · global</td><td>million barrels / day</td><td>World Energy Outlook</td></tr>
+  </table>
+  <p class="small muted" style="margin-top:14px">Actual years run to 2024; forecast years run from 2025 to 2050. The vehicle models also offer a <b>Fleet</b> view: cumulative sales since 2020.</p>
+</section>
+
+<section class="slide" data-title="How it works">
+  <p class="kicker">3 · How it works</p>
+  <h2>Assumptions in, forecasts out</h2>
+  <div class="flow">
+    <div class="card"><h3>Actuals</h3><p class="small" style="margin:0">The last measured year (2024) from the source data: vehicles sold, oil used, activity.</p></div>
+    <div class="arrow">→</div>
+    <div class="card good"><h3>Assumptions</h3><p class="small" style="margin:0">A few percentages per case for 2025, 2030, 2035, 2040 and 2050: growth rates, efficiency gains, shares of electric or other fuels.</p></div>
+    <div class="arrow">→</div>
+    <div class="card"><h3>Forecast</h3><p class="small" style="margin:0">Every year from 2025 to 2050 is calculated from the 2024 actual and those assumptions.</p></div>
+  </div>
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card"><h3>Vehicles</h3><p class="small" style="margin:0">Grow the total market, take the electric share of it, and what remains is combustion engines (IC Only).</p></div>
+    <div class="card"><h3>Shipping and aviation</h3><p class="small" style="margin:0">Activity × oil per unit of activity, minus the share served by other fuels. Petrochemicals and buildings/power simply grow at a rate.</p></div>
+  </div>
+  <p class="small muted" style="margin-top:12px">The full method, with formulas and a worked example, is in the app's first page and in <code>docs/methodology/</code>.</p>
+</section>
+
+<section class="slide" data-title="What you can do">
+  <p class="kicker">4 · What you can do with it</p>
+  <h2>Change a number, see the forecast move</h2>
+  <div class="grid g2">
+    <ul class="clean">
+      <li><b>Explore</b>: edit any assumption and see the new forecast drawn as a dashed line next to the saved one, before you save anything.</li>
+      <li><b>Compare</b>: show all three scenario cases side by side, by region, powertrain or sector.</li>
+      <li><b>Save</b>: keep a set of assumptions as a named scenario and make it the one everyone sees.</li>
+      <li><b>Take the numbers away</b>: every chart has a table view that can be sorted and downloaded.</li>
+    </ul>
+    <div class="card">
+      <h3>Who it is for</h3>
+      <p class="small">People who want to test transition assumptions and see their effect on demand quickly, without building a model each time.</p>
+      <p class="small" style="margin:0">Everyone signs in with one shared login, so saved scenarios are shared by the whole team.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-title="What it is not">
+  <p class="kicker">5 · What it is not</p>
+  <h2>Read the results with these limits in mind</h2>
+  <div class="grid g2">
+    <div class="card warn"><h3>Projections, not predictions</h3><p class="small" style="margin:0">Every number follows from the assumptions. There is no statistical fitting and no price or economic modelling.</p></div>
+    <div class="card warn"><h3>Three separate models</h3><p class="small" style="margin:0">Vehicle sales do not feed oil consumption, and there is no total oil demand figure.</p></div>
+    <div class="card warn"><h3>One line per case</h3><p class="small" style="margin:0">No uncertainty bands: the spread between Slower and Faster Transition is the only range shown.</p></div>
+    <div class="card warn"><h3>"Sales" are production</h3><p class="small" style="margin:0">GlobalData records vehicles where they are built, so a region's "sales" can differ from what is sold there.</p></div>
+    <div class="card warn"><h3>Fleet is not the vehicle stock</h3><p class="small" style="margin:0">It adds up sales since 2020 and never retires a vehicle; older vehicles are left out.</p></div>
+    <div class="card warn"><h3>No fuel use for vehicles</h3><p class="small" style="margin:0">The vehicle models count vehicles, not kilometres driven or fuel burned.</p></div>
+  </div>
+</section>
+
+<section class="slide" data-title="Next">
+  <p class="kicker">6 · Where to go next</p>
+  <h2>Run it, then use it</h2>
+  <div class="grid g2">
+    <div class="card accent"><h3><a href="running.html">How to run it →</a></h3><p class="small" style="margin:0">The input data, the login, running it on your computer, and putting it online.</p></div>
+    <div class="card accent"><h3><a href="using.html">How to use it →</a></h3><p class="small" style="margin:0">The pages, reading the charts, editing and saving scenarios.</p></div>
+  </div>
+  <p class="small muted" style="margin-top:16px">Written guides with the same content: <code>docs/guide/</code>.</p>
+</section>
+
+</main>
+<nav class="nav" aria-label="Slides">
+  <button id="prev" aria-label="Previous slide">←</button>
+  <span class="count" id="count"></span>
+  <button id="next" aria-label="Next slide">→</button>
+  <span class="title" id="title"></span>
+  <button id="theme" aria-label="Switch light or dark">◐</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>

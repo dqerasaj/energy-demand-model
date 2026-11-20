@@ -3,18 +3,25 @@ Energy demand scenario forecasting model
 
 ## Web app
 
-A Streamlit dashboard (`app.py`) covers two vehicle classes - LDV (light duty)
-and HDV (heavy duty trucks and buses) - each with its own sidebar section. For
-either, users pick a scenario (Base Case / Faster Transition / Slower
-Transition) and view the scenario config plus the resulting sales forecasts as
-charts or tables.
+A Streamlit dashboard (`app.py`) covers three models, each with its own sidebar
+section: LDV (light duty vehicles), HDV (heavy duty trucks and buses) and Other
+Oil Consumption (petrochemicals, shipping, aviation, buildings/power/other). For
+each, users pick a scenario case (Slower Transition / Base Case / Faster
+Transition) and view the scenario config plus the resulting forecasts as charts
+or tables.
+
+**Documentation:** [`docs/guide/`](docs/guide/README.md) explains what the model
+is for, how to run it and how to use it, with a slide deck for each in
+[`docs/decks/`](docs/decks/). The calculations are in
+[`docs/methodology/`](docs/methodology/overview.md).
 
 Both models share one forecasting engine (`forecast_model.py`) and one set of
 pages; `vehicle_models.py` holds the per-class differences - regions,
 powertrains, input files and labels. LDV models BEV, PHEV and IC Only across
 North America / Europe / APAC / RoW; HDV models BEV and IC Only across China /
 USA / RoW. In both, IC Only is the residual that reconciles the modelled
-powertrains with the region's all-vehicle total.
+powertrains with the region's all-vehicle total. Other Oil has its own engine
+(`other_oil_forecast_model.py`).
 
 ### Local setup
 
@@ -24,13 +31,15 @@ cp .streamlit/secrets.toml.example .streamlit/secrets.toml   # fill in [auth] us
 streamlit run app.py
 ```
 
-Three input files are read from `input_data/`:
+Five input files are read from `input_data/`:
 
 | File | Used by |
 | --- | --- |
 | `globaldata_ldv_sales.csv` | LDV sales actuals |
 | `globaldata_hdv_sales.csv` | HDV sales actuals |
-| `hdv_default_schema.csv` | HDV default scenario values (the LDV equivalent is hard-coded in `scenario_config.py`) |
+| `hdv_default_schema.csv` | HDV default scenario values (the LDV equivalent is hard-coded in `ldv_scenario_config.py`) |
+| `weo_other_oil_consumption.csv` | Other Oil consumption actuals |
+| `other_oil_default_schema.csv` | Other Oil default scenario values |
 
 Any of them present locally is used directly, and the `[github]` secrets
 section is unused for it. That section is only needed for files that are absent
@@ -38,12 +47,13 @@ section is unused for it. That section is only needed for files that are absent
 
 ### Deployment
 
-The sales extracts are GlobalData-licensed data and must **not** be committed
-to this (public) repo - they live in a separate private repo instead, and the
-running app downloads them at startup via a scoped GitHub token.
+The input files are licensed data (GlobalData, World Energy Outlook) and must
+**not** be committed to this repo - they live in a separate private repo
+instead, and the running app downloads them at startup via a scoped GitHub
+token.
 
 1. Create a **private** GitHub repo (e.g.`{repo_owner}/energy-demand-model-data`) and push
-   the three input files listed above to it.
+   the five input files listed above to it.
    (update the `DATA_REPO` constant and the filename constants in `data_loader.py` if you use different names/paths)
 2. Generate a fine-grained GitHub Personal Access Token scoped read-only to that one repo.
    Note its expiry - the app will fail once it lapses until someone restarts it.
